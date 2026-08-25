@@ -511,45 +511,37 @@
             <div class="choices" id="privateChoices"></div>
           </div>
 
-          <div class="section-title">2. İndirim / kampanya</div>
+          <div class="section-title">2. İndirim / kampanya <span style="font-weight:700;text-transform:none;letter-spacing:0">(birden fazla seçilebilir)</span></div>
           <div class="campaigns" id="campaignList">
-            <div class="campaign">
-              <input type="radio" id="camp-none" name="campaign" value="none" checked>
-              <label for="camp-none">
-                <strong>İndirim yok</strong>
-                <small>Seçili paketin liste fiyatı uygulanır.</small>
-              </label>
-            </div>
-
             <div class="campaign course-only">
-              <input type="radio" id="camp-friend" name="campaign" value="friend">
+              <input type="checkbox" id="camp-friend" name="campaign" value="friend">
               <label for="camp-friend">
                 <strong>Arkadaşını Getir — %10</strong>
-                <small>2 kişi için hesaplanır; iki kişi de %10 indirim alır.</small>
+                <small>2 kişi için hesaplanır; iki kişi de %10 indirim alır. Diğer uygun kampanyalarla birleştirilebilir.</small>
               </label>
             </div>
 
             <div class="campaign course-only">
-              <input type="radio" id="camp-family" name="campaign" value="family">
+              <input type="checkbox" id="camp-family" name="campaign" value="family">
               <label for="camp-family">
                 <strong>Ailece Katılım — 2. kişiye %10</strong>
-                <small>1. kişi liste fiyatı, 2. kişi %10 indirimli hesaplanır.</small>
+                <small>1. kişi liste fiyatı, 2. kişi %10 indirimli. Diğer uygun kampanyalarla birleştirilebilir.</small>
               </label>
             </div>
 
             <div class="campaign course-only">
-              <input type="radio" id="camp-returning" name="campaign" value="returning">
+              <input type="checkbox" id="camp-returning" name="campaign" value="returning">
               <label for="camp-returning">
                 <strong>Devam Eden Öğrenci — %20</strong>
-                <small>Tek kurda geçerlidir: A1, A2, B1 veya B2.</small>
+                <small>Seçilen tüm kurslara uygulanır. Örn. B1 + B2 birlikte seçilirse ikisi de %20 indirimli olur.</small>
               </label>
             </div>
 
             <div class="campaign">
-              <input type="radio" id="camp-manual" name="campaign" value="manual">
+              <input type="checkbox" id="camp-manual" name="campaign" value="manual">
               <label for="camp-manual">
                 <strong>Manuel / Kuruma Özel İndirim</strong>
-                <small>Yüzde veya sabit TL indirim girilebilir.</small>
+                <small>Diğer indirimlerden sonra ek yüzde veya sabit TL indirimi uygulanabilir.</small>
               </label>
             </div>
           </div>
@@ -604,6 +596,10 @@
             <div class="k">Seçili paket</div>
             <div class="v" id="selectedPackage">A1</div>
           </div>
+          <div class="row" id="courseBreakdownRow">
+            <div class="k">Kur bazında fiyat</div>
+            <div class="v" id="courseBreakdown">A1 · 13.500 ₺</div>
+          </div>
           <div class="row">
             <div class="k">Liste fiyatı</div>
             <div class="v" id="basePrice">13.500 ₺</div>
@@ -635,7 +631,7 @@
         </div>
 
         <div class="notice" id="ruleNotice">
-          Kampanyalar birbiriyle birleştirilmez. Devam eden öğrenci indirimi yalnızca tek kur için uygulanır.
+          Kampanyalar birleştirilebilir. “Arkadaşını Getir” ve “Ailece Katılım” aynı anda seçilemez. Devam eden öğrenci %20 indirimi seçili tüm kurslara uygulanır.
         </div>
 
         <div class="actions">
@@ -687,9 +683,9 @@
 
   let prices;
   try {
-    prices = JSON.parse(localStorage.getItem("aydaPrices") || "null") || structuredClone(defaultPrices);
+    prices = JSON.parse(localStorage.getItem("aydaPrices") || "null") || JSON.parse(JSON.stringify(defaultPrices));
   } catch (e) {
-    prices = structuredClone(defaultPrices);
+    prices = JSON.parse(JSON.stringify(defaultPrices));
   }
 
   function savePrices(){
@@ -745,9 +741,7 @@
     `).join("");
 
     document.querySelectorAll('input[name="coursePackage"]').forEach(el=>{
-      el.addEventListener("change", ()=>{
-        handleCourseSelection(el.value, el.checked);
-      });
+      el.addEventListener("change", ()=>handleCourseSelection(el.value, el.checked));
     });
 
     document.querySelectorAll('input[name="privatePackage"]').forEach(el=>{
@@ -756,22 +750,18 @@
         calculate();
       });
     });
-
-    updateReturningCourseSelector();
   }
 
   function handleCourseSelection(key, checked){
     if(checked){
       if(key === "a1a2"){
-        // Kombine paket A1 ve A2'nin yerine geçer.
         state.selectedCourses = state.selectedCourses.filter(k => !["a1","a2"].includes(k));
         if(!state.selectedCourses.includes("a1a2")) state.selectedCourses.push("a1a2");
       } else if(["a1","a2"].includes(key)){
-        // A1 veya A2 ayrı seçilirse kombine paket kaldırılır.
         state.selectedCourses = state.selectedCourses.filter(k => k !== "a1a2");
         if(!state.selectedCourses.includes(key)) state.selectedCourses.push(key);
-      } else {
-        if(!state.selectedCourses.includes(key)) state.selectedCourses.push(key);
+      } else if(!state.selectedCourses.includes(key)){
+        state.selectedCourses.push(key);
       }
     } else {
       state.selectedCourses = state.selectedCourses.filter(k => k !== key);
@@ -810,17 +800,16 @@
     });
   }
 
-  function selectedCampaign(){
-    return document.querySelector('input[name="campaign"]:checked')?.value || "none";
+  function selectedCampaigns(){
+    return Array.from(document.querySelectorAll('input[name="campaign"]:checked')).map(el => el.value);
   }
 
-  function setCampaign(value){
-    const input = document.querySelector(`input[name="campaign"][value="${value}"]`);
-    if(input) input.checked = true;
+  function campaignChecked(value){
+    return !!document.querySelector(`input[name="campaign"][value="${value}"]:checked`);
   }
 
   function getSelectedCourseKeys(){
-    return Object.keys(labels.course).filter(k => state.selectedCourses.includes(k) && prices.course[k] !== undefined);
+    return state.selectedCourses.filter(k => prices.course[k] !== undefined);
   }
 
   function coursePackageLabel(keys){
@@ -832,113 +821,68 @@
     return keys.reduce((sum,k)=>sum + Number(prices.course[k] || 0), 0);
   }
 
-  function ensureReturningSelector(){
-    let box = document.getElementById("returningCourseBox");
-    if(!box){
-      box = document.createElement("div");
-      box.id = "returningCourseBox";
-      box.className = "manual-box";
-      box.innerHTML = `
-        <div class="field" style="grid-column:1/-1">
-          <label for="returningCourse">Devam öğrenci indirimi hangi kura uygulansın?</label>
-          <select id="returningCourse"></select>
-        </div>
-      `;
-      document.getElementById("manualBox").insertAdjacentElement("afterend", box);
-      box.querySelector("select").addEventListener("change", calculate);
-    }
-    return box;
-  }
-
-  function updateReturningCourseSelector(){
-    const box = ensureReturningSelector();
-    const select = document.getElementById("returningCourse");
-    const keys = getSelectedCourseKeys().filter(k => k !== "a1a2");
-
-    const previous = select.value;
-    select.innerHTML = keys.map(k => `
-      <option value="${k}">${labels.course[k][0]} — ${moneyPlain(prices.course[k])}</option>
-    `).join("");
-
-    if(keys.includes(previous)) select.value = previous;
-    box.classList.toggle("show", state.tab === "course" && selectedCampaign() === "returning" && keys.length > 0);
-  }
-
   function calculate(){
-    const campaign = selectedCampaign();
     let persons = 1;
     let listTotal = 0;
     let finalTotal = 0;
-    let discountText = "—";
-    let warning = "";
     let packageName = "";
     let basePriceText = "";
+    let warning = "";
+    let applied = [];
+
+    const campaigns = selectedCampaigns();
 
     if(state.tab === "course"){
       const keys = getSelectedCourseKeys();
 
       if(!keys.length){
-        listTotal = 0;
-        finalTotal = 0;
         packageName = "Kurs seçilmedi";
         basePriceText = "0 ₺";
         warning = "Hesaplama için en az bir kurs seçin.";
       } else {
-        listTotal = courseListTotal(keys);
-        finalTotal = listTotal;
+        const onePersonTotal = courseListTotal(keys);
+        listTotal = onePersonTotal;
+        finalTotal = onePersonTotal;
         packageName = coursePackageLabel(keys);
         basePriceText = keys.length > 1
-          ? keys.map(k => `${labels.course[k][0]} ${moneyPlain(prices.course[k])}`).join(" + ") + ` = ${moneyPlain(listTotal)}`
-          : moneyPlain(listTotal);
+          ? keys.map(k => `${labels.course[k][0]} ${moneyPlain(prices.course[k])}`).join(" + ") + ` = ${moneyPlain(onePersonTotal)}`
+          : moneyPlain(onePersonTotal);
 
-        if(campaign === "friend"){
+        // 2 kişilik kampanyalar birbiriyle alternatif, diğer indirimlerle birleşebilir.
+        if(campaigns.includes("friend")){
           persons = 2;
-          listTotal *= 2;
+          listTotal = onePersonTotal * 2;
           finalTotal = listTotal * 0.90;
-          discountText = "Arkadaşını Getir · %10";
-          basePriceText = `${moneyPlain(courseListTotal(keys))} × 2 = ${moneyPlain(listTotal)}`;
-        }
-
-        if(campaign === "family"){
+          applied.push("Arkadaşını Getir %10");
+          basePriceText = `${moneyPlain(onePersonTotal)} × 2 = ${moneyPlain(listTotal)}`;
+        } else if(campaigns.includes("family")){
           persons = 2;
-          const onePersonTotal = courseListTotal(keys);
           listTotal = onePersonTotal * 2;
           finalTotal = onePersonTotal + (onePersonTotal * 0.90);
-          discountText = "Ailece Katılım · 2. kişiye %10";
+          applied.push("Ailece Katılım: 2. kişiye %10");
           basePriceText = `${moneyPlain(onePersonTotal)} × 2 = ${moneyPlain(listTotal)}`;
         }
 
-        if(campaign === "returning"){
-          const eligible = keys.filter(k => k !== "a1a2");
-
-          if(!eligible.length){
-            finalTotal = listTotal;
-            discountText = "Uygulanmadı";
-            warning = "Devam eden öğrenci indirimi tek kur içindir; yalnızca A1 + A2 kombine paket seçiliyken uygulanmaz.";
-          } else {
-            updateReturningCourseSelector();
-            const chosen = document.getElementById("returningCourse").value || eligible[0];
-            const chosenPrice = Number(prices.course[chosen] || 0);
-            finalTotal = listTotal - (chosenPrice * 0.20);
-            discountText = `Devam Eden Öğrenci · ${labels.course[chosen][0]} için %20`;
-            if(keys.length > 1){
-              warning = `Devam eden öğrenci indirimi yalnızca ${labels.course[chosen][0]} kuruna uygulandı; diğer seçili kurlar liste fiyatında kaldı.`;
-            }
-          }
+        // Devam eden öğrenci indirimi artık seçili TÜM kurslara uygulanır.
+        // Birden çok kampanya varsa önceki indirimli tutar üzerinden ayrıca %20 düşer.
+        if(campaigns.includes("returning")){
+          finalTotal = finalTotal * 0.80;
+          applied.push("Devam Eden Öğrenci %20 · tüm seçili kurslar");
         }
 
-        if(campaign === "manual"){
+        // Manuel indirim en son uygulanır ve diğer kampanyalarla birleşebilir.
+        if(campaigns.includes("manual")){
           const type = document.getElementById("manualType").value;
           let val = Math.max(0, Number(document.getElementById("manualValue").value) || 0);
 
           if(type === "percent"){
             val = Math.min(100, val);
-            finalTotal = listTotal * (1 - val/100);
-            discountText = `Manuel · %${val}`;
+            finalTotal = finalTotal * (1 - val/100);
+            applied.push(`Manuel %${val}`);
           } else {
-            val = Math.min(listTotal, val);
-            finalTotal = listTotal - val;
-            discountText = `Manuel · ${moneyPlain(val)}`;
+            val = Math.min(finalTotal, val);
+            finalTotal = finalTotal - val;
+            applied.push(`Manuel ${moneyPlain(val)}`);
           }
         }
       }
@@ -951,26 +895,24 @@
       finalTotal = price;
       basePriceText = moneyPlain(price);
 
-      if(["friend","family","returning"].includes(campaign)){
-        setCampaign("none");
-        discountText = "—";
-      } else if(campaign === "manual"){
+      if(campaigns.includes("manual")){
         const type = document.getElementById("manualType").value;
         let val = Math.max(0, Number(document.getElementById("manualValue").value) || 0);
 
         if(type === "percent"){
           val = Math.min(100, val);
-          finalTotal = listTotal * (1 - val/100);
-          discountText = `Manuel · %${val}`;
+          finalTotal = finalTotal * (1 - val/100);
+          applied.push(`Manuel %${val}`);
         } else {
-          val = Math.min(listTotal, val);
-          finalTotal = listTotal - val;
-          discountText = `Manuel · ${moneyPlain(val)}`;
+          val = Math.min(finalTotal, val);
+          finalTotal = finalTotal - val;
+          applied.push(`Manuel ${moneyPlain(val)}`);
         }
       }
     }
 
     const discountAmount = Math.max(0, listTotal - finalTotal);
+    const discountText = applied.length ? applied.join(" + ") : "—";
     const payment = document.getElementById("payment").value;
     const installment = payment === "card" ? finalTotal / 2 : null;
     const paymentText = payment === "card" ? "Kredi kartı · 2 taksit" : "Havale / EFT";
@@ -979,13 +921,42 @@
     document.getElementById("grandTotal").textContent = moneyPlain(finalTotal);
     document.getElementById("summaryMeta").textContent = `${packageName} · ${persons} kişi · ${paymentText}`;
     document.getElementById("selectedPackage").textContent = packageName;
+
+    const breakdownRow = document.getElementById("courseBreakdownRow");
+    const breakdownEl = document.getElementById("courseBreakdown");
+
+    if(state.tab === "course"){
+      const keys = getSelectedCourseKeys();
+
+      if(keys.length){
+        if(campaigns.includes("returning")){
+          // Devam eden öğrenci indirimi her seçili kura ayrı ayrı uygulanır.
+          // Örn. B1: 15.000 -> 12.000, B2: 17.000 -> 13.600.
+          breakdownEl.innerHTML = keys.map(k => {
+            const normal = Number(prices.course[k] || 0);
+            const discounted = normal * 0.80;
+            return `${labels.course[k][0]}: ${moneyPlain(normal)} → ${moneyPlain(discounted)}`;
+          }).join("<br>");
+        } else {
+          breakdownEl.innerHTML = keys.map(k => {
+            const normal = Number(prices.course[k] || 0);
+            return `${labels.course[k][0]}: ${moneyPlain(normal)}`;
+          }).join("<br>");
+        }
+        breakdownRow.classList.remove("hidden");
+      } else {
+        breakdownRow.classList.add("hidden");
+      }
+    } else {
+      breakdownRow.classList.add("hidden");
+    }
+
     document.getElementById("basePrice").textContent = basePriceText;
     document.getElementById("personCount").textContent = persons;
     document.getElementById("discountLabel").textContent = discountText;
     document.getElementById("discountAmount").textContent = discountAmount > 0 ? "− " + moneyPlain(discountAmount) : "0 ₺";
     document.getElementById("perPerson").textContent = moneyPlain(persons ? finalTotal / persons : finalTotal);
     document.getElementById("installment").textContent = installment !== null ? `2 × ${moneyPlain(installment)}` : "—";
-
     document.getElementById("installmentRow").classList.toggle("hidden", payment !== "card");
 
     const nameRow = document.getElementById("nameRow");
@@ -996,8 +967,7 @@
     warningBox.textContent = warning;
     warningBox.classList.toggle("show", !!warning);
 
-    document.getElementById("manualBox").classList.toggle("show", campaign === "manual");
-    updateReturningCourseSelector();
+    document.getElementById("manualBox").classList.toggle("show", campaignChecked("manual"));
 
     window.currentSummary = {
       packageName,
@@ -1026,10 +996,6 @@
       el.classList.toggle("hidden", tab !== "course");
     });
 
-    if(tab === "private" && ["friend","family","returning"].includes(selectedCampaign())){
-      setCampaign("none");
-    }
-
     renderChoices();
     calculate();
   }
@@ -1040,7 +1006,13 @@
 
   document.querySelectorAll('input[name="campaign"]').forEach(el=>{
     el.addEventListener("change", ()=>{
-      updateReturningCourseSelector();
+      // Arkadaşını Getir ve Ailece Katılım aynı anda seçilemez.
+      if(el.checked && el.value === "friend"){
+        document.getElementById("camp-family").checked = false;
+      }
+      if(el.checked && el.value === "family"){
+        document.getElementById("camp-friend").checked = false;
+      }
       calculate();
     });
   });
@@ -1058,7 +1030,7 @@
       `Paket / Kurlar: ${s.packageName}`,
       `Liste toplamı: ${moneyPlain(s.listTotal)}`,
       `Kişi sayısı: ${s.persons}`,
-      `İndirim: ${s.discountText}`,
+      `İndirimler: ${s.discountText}`,
       `Toplam indirim: ${moneyPlain(s.discountAmount)}`,
       `Son fiyat: ${moneyPlain(s.finalTotal)}`,
       `Ödeme: ${s.paymentText}`,
