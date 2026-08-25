@@ -1,0 +1,1076 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#08245f" />
+  <title>AYDA Fiyat Hesaplayıcı</title>
+
+  <style>
+    :root{
+      --navy:#08245f;
+      --navy-2:#0b327c;
+      --ink:#10204a;
+      --muted:#667085;
+      --line:#d8dfeb;
+      --soft:#f5f7fb;
+      --white:#ffffff;
+      --ok:#0c7a5a;
+      --warn:#a15c00;
+      --danger:#b42318;
+      --shadow:0 18px 55px rgba(8,36,95,.12);
+      --radius:18px;
+    }
+
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(11,50,124,.08), transparent 34%),
+        linear-gradient(180deg,#fff 0%,#f6f8fc 100%);
+      color:var(--ink);
+      min-height:100vh;
+    }
+
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+
+    .wrap{
+      width:min(1160px, calc(100% - 28px));
+      margin:28px auto 60px;
+    }
+
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:18px;
+      margin-bottom:22px;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:14px;
+    }
+
+    .brand-mark{
+      width:58px;
+      height:58px;
+      border-radius:16px;
+      display:grid;
+      place-items:center;
+      color:white;
+      background:linear-gradient(145deg,var(--navy),var(--navy-2));
+      box-shadow:0 10px 26px rgba(8,36,95,.18);
+      font-weight:900;
+      font-size:27px;
+      letter-spacing:-2px;
+    }
+
+    .brand h1{
+      margin:0;
+      font-size:clamp(24px,4vw,36px);
+      line-height:1.05;
+      letter-spacing:-.8px;
+    }
+
+    .brand p{
+      margin:6px 0 0;
+      color:var(--muted);
+      font-size:14px;
+    }
+
+    .badge{
+      background:#eef4ff;
+      color:var(--navy);
+      border:1px solid #cbdafa;
+      padding:9px 12px;
+      border-radius:999px;
+      font-weight:750;
+      white-space:nowrap;
+      font-size:13px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:minmax(0, 1.07fr) minmax(340px, .93fr);
+      gap:20px;
+      align-items:start;
+    }
+
+    .card{
+      background:rgba(255,255,255,.92);
+      border:1px solid rgba(8,36,95,.11);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+
+    .card-head{
+      padding:18px 20px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+
+    .card-head h2{
+      margin:0;
+      font-size:18px;
+    }
+
+    .card-body{padding:20px}
+
+    .tabs{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      background:var(--soft);
+      border:1px solid var(--line);
+      border-radius:13px;
+      padding:4px;
+      margin-bottom:20px;
+    }
+
+    .tab{
+      border:0;
+      background:transparent;
+      color:var(--muted);
+      padding:11px 12px;
+      border-radius:10px;
+      font-weight:800;
+    }
+
+    .tab.active{
+      background:white;
+      color:var(--navy);
+      box-shadow:0 4px 13px rgba(16,32,74,.08);
+    }
+
+    .section-title{
+      margin:22px 0 11px;
+      font-size:13px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      color:#667085;
+      font-weight:900;
+    }
+
+    .choices{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
+    }
+
+    .choice{
+      position:relative;
+    }
+
+    .choice input{
+      position:absolute;
+      opacity:0;
+      pointer-events:none;
+    }
+
+    .choice label{
+      min-height:72px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:14px;
+      border:1.5px solid var(--line);
+      border-radius:14px;
+      background:#fff;
+      transition:.16s ease;
+    }
+
+    .choice label:hover{border-color:#aab9d9}
+    .choice input:checked + label{
+      border-color:var(--navy);
+      box-shadow:0 0 0 3px rgba(8,36,95,.08);
+      background:#f8faff;
+    }
+
+    .choice .name{
+      font-weight:900;
+      color:var(--ink);
+    }
+
+    .choice .sub{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:3px;
+    }
+
+    .price{
+      font-weight:900;
+      color:var(--navy);
+      white-space:nowrap;
+      font-size:17px;
+    }
+
+    .campaigns{
+      display:grid;
+      gap:9px;
+    }
+
+    .campaign{
+      position:relative;
+    }
+
+    .campaign input{
+      position:absolute;
+      opacity:0;
+      pointer-events:none;
+    }
+
+    .campaign label{
+      display:block;
+      padding:13px 14px;
+      border:1.5px solid var(--line);
+      border-radius:13px;
+      background:#fff;
+      transition:.15s ease;
+    }
+
+    .campaign input:checked + label{
+      border-color:var(--navy);
+      background:#f8faff;
+      box-shadow:0 0 0 3px rgba(8,36,95,.07);
+    }
+
+    .campaign strong{
+      display:block;
+      margin-bottom:3px;
+      font-size:14px;
+    }
+
+    .campaign small{
+      display:block;
+      color:var(--muted);
+      line-height:1.35;
+    }
+
+    .manual-box{
+      display:none;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-top:10px;
+    }
+
+    .manual-box.show{display:grid}
+
+    .field label{
+      display:block;
+      font-size:12px;
+      color:var(--muted);
+      margin:0 0 6px;
+      font-weight:800;
+    }
+
+    .field input,.field select{
+      width:100%;
+      height:44px;
+      border:1.5px solid var(--line);
+      border-radius:11px;
+      padding:0 12px;
+      background:white;
+      color:var(--ink);
+      outline:none;
+    }
+
+    .field input:focus,.field select:focus{
+      border-color:var(--navy);
+      box-shadow:0 0 0 3px rgba(8,36,95,.07);
+    }
+
+    .inline-fields{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-top:12px;
+    }
+
+    .hint{
+      margin-top:11px;
+      border-radius:12px;
+      padding:11px 12px;
+      background:#fff8e8;
+      color:#775100;
+      border:1px solid #f0d79a;
+      font-size:12px;
+      line-height:1.45;
+      display:none;
+    }
+    .hint.show{display:block}
+
+    details{
+      margin-top:18px;
+      border:1px solid var(--line);
+      border-radius:13px;
+      background:#fbfcfe;
+    }
+
+    summary{
+      padding:12px 14px;
+      cursor:pointer;
+      font-weight:850;
+      color:var(--navy);
+      user-select:none;
+    }
+
+    .settings{
+      border-top:1px solid var(--line);
+      padding:14px;
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
+    }
+
+    .summary-card{
+      position:sticky;
+      top:18px;
+    }
+
+    .result-top{
+      padding:24px 22px 16px;
+      background:linear-gradient(145deg,var(--navy),var(--navy-2));
+      color:white;
+    }
+
+    .result-top .label{
+      opacity:.78;
+      font-size:13px;
+      font-weight:700;
+      margin-bottom:7px;
+    }
+
+    .total{
+      font-size:clamp(34px,6vw,52px);
+      line-height:1;
+      font-weight:950;
+      letter-spacing:-1.5px;
+    }
+
+    .result-top .meta{
+      margin-top:10px;
+      font-size:13px;
+      opacity:.84;
+    }
+
+    .receipt{
+      padding:18px 20px;
+    }
+
+    .row{
+      display:flex;
+      justify-content:space-between;
+      gap:18px;
+      padding:11px 0;
+      border-bottom:1px dashed var(--line);
+      align-items:flex-start;
+    }
+
+    .row:last-child{border-bottom:0}
+    .row .k{
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.4;
+    }
+    .row .v{
+      font-weight:850;
+      text-align:right;
+      line-height:1.4;
+    }
+
+    .discount{color:var(--ok)}
+    .negative{color:var(--danger)}
+
+    .notice{
+      margin:0 20px 16px;
+      padding:11px 12px;
+      border:1px solid #cfe4db;
+      background:#f0fbf6;
+      color:#17624c;
+      border-radius:12px;
+      font-size:12px;
+      line-height:1.45;
+    }
+
+    .actions{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      padding:0 20px 20px;
+    }
+
+    .btn{
+      border:0;
+      border-radius:12px;
+      height:46px;
+      padding:0 14px;
+      font-weight:900;
+    }
+
+    .btn-primary{
+      color:white;
+      background:var(--navy);
+    }
+
+    .btn-secondary{
+      color:var(--navy);
+      background:#edf3ff;
+      border:1px solid #d5e1f8;
+    }
+
+    .footer-note{
+      margin-top:15px;
+      color:var(--muted);
+      font-size:12px;
+      text-align:center;
+      line-height:1.5;
+    }
+
+    .hidden{display:none !important}
+
+    @media (max-width: 860px){
+      .grid{grid-template-columns:1fr}
+      .summary-card{position:static}
+      .topbar{align-items:flex-start}
+    }
+
+    @media (max-width: 560px){
+      .wrap{width:min(100% - 18px,1160px); margin-top:14px}
+      .topbar{margin-bottom:14px}
+      .brand-mark{width:50px;height:50px;border-radius:13px;font-size:23px}
+      .badge{display:none}
+      .choices{grid-template-columns:1fr}
+      .inline-fields,.manual-box,.settings{grid-template-columns:1fr}
+      .card-body{padding:15px}
+      .card-head{padding:15px}
+      .result-top{padding:20px 17px 15px}
+      .receipt{padding:14px 17px}
+      .actions{padding:0 17px 17px}
+    }
+
+    @media print{
+      body{background:#fff}
+      .wrap{width:100%;margin:0}
+      .topbar,.calculator-card,.actions,.footer-note{display:none !important}
+      .grid{display:block}
+      .summary-card{
+        position:static;
+        box-shadow:none;
+        border:1px solid #b8c2d6;
+      }
+      .result-top{
+        -webkit-print-color-adjust:exact;
+        print-color-adjust:exact;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="wrap">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">A</div>
+        <div>
+          <h1>AYDA Fiyat Hesaplayıcı</h1>
+          <p>Kurs / özel ders fiyatı, kampanya indirimi ve taksit hesabı</p>
+        </div>
+      </div>
+      <div class="badge">2026 Fiyatları</div>
+    </header>
+
+    <section class="grid">
+      <div class="card calculator-card">
+        <div class="card-head">
+          <h2>Hesaplama</h2>
+          <span style="font-size:12px;color:#667085">Tutarlar otomatik güncellenir</span>
+        </div>
+
+        <div class="card-body">
+          <div class="tabs">
+            <button class="tab active" data-tab="course">Kurs Paketleri</button>
+            <button class="tab" data-tab="private">Özel Ders</button>
+          </div>
+
+          <div id="coursePanel">
+            <div class="section-title">1. Kur / paket seç <span style="font-weight:700;text-transform:none;letter-spacing:0">(birden fazla seçilebilir)</span></div>
+            <div class="choices" id="courseChoices"></div>
+          </div>
+
+          <div id="privatePanel" class="hidden">
+            <div class="section-title">1. Paket seç</div>
+            <div class="choices" id="privateChoices"></div>
+          </div>
+
+          <div class="section-title">2. İndirim / kampanya</div>
+          <div class="campaigns" id="campaignList">
+            <div class="campaign">
+              <input type="radio" id="camp-none" name="campaign" value="none" checked>
+              <label for="camp-none">
+                <strong>İndirim yok</strong>
+                <small>Seçili paketin liste fiyatı uygulanır.</small>
+              </label>
+            </div>
+
+            <div class="campaign course-only">
+              <input type="radio" id="camp-friend" name="campaign" value="friend">
+              <label for="camp-friend">
+                <strong>Arkadaşını Getir — %10</strong>
+                <small>2 kişi için hesaplanır; iki kişi de %10 indirim alır.</small>
+              </label>
+            </div>
+
+            <div class="campaign course-only">
+              <input type="radio" id="camp-family" name="campaign" value="family">
+              <label for="camp-family">
+                <strong>Ailece Katılım — 2. kişiye %10</strong>
+                <small>1. kişi liste fiyatı, 2. kişi %10 indirimli hesaplanır.</small>
+              </label>
+            </div>
+
+            <div class="campaign course-only">
+              <input type="radio" id="camp-returning" name="campaign" value="returning">
+              <label for="camp-returning">
+                <strong>Devam Eden Öğrenci — %20</strong>
+                <small>Tek kurda geçerlidir: A1, A2, B1 veya B2.</small>
+              </label>
+            </div>
+
+            <div class="campaign">
+              <input type="radio" id="camp-manual" name="campaign" value="manual">
+              <label for="camp-manual">
+                <strong>Manuel / Kuruma Özel İndirim</strong>
+                <small>Yüzde veya sabit TL indirim girilebilir.</small>
+              </label>
+            </div>
+          </div>
+
+          <div class="manual-box" id="manualBox">
+            <div class="field">
+              <label for="manualType">İndirim tipi</label>
+              <select id="manualType">
+                <option value="percent">Yüzde (%)</option>
+                <option value="amount">Sabit tutar (₺)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="manualValue">İndirim değeri</label>
+              <input id="manualValue" type="number" min="0" step="0.01" value="10">
+            </div>
+          </div>
+
+          <div class="hint" id="warningBox"></div>
+
+          <div class="section-title">3. Ödeme</div>
+          <div class="inline-fields">
+            <div class="field">
+              <label for="payment">Ödeme yöntemi</label>
+              <select id="payment">
+                <option value="transfer">Havale / EFT</option>
+                <option value="card">Kredi kartı — 2 taksit</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="studentName">Öğrenci / müşteri adı (opsiyonel)</label>
+              <input id="studentName" type="text" placeholder="Örn. Ayşe Yılmaz">
+            </div>
+          </div>
+
+          <details>
+            <summary>Fiyatları düzenle</summary>
+            <div class="settings" id="priceSettings"></div>
+          </details>
+        </div>
+      </div>
+
+      <aside class="card summary-card">
+        <div class="result-top">
+          <div class="label">ÖDENECEK TOPLAM</div>
+          <div class="total" id="grandTotal">13.500 ₺</div>
+          <div class="meta" id="summaryMeta">A1 · 1 kişi · Havale / EFT</div>
+        </div>
+
+        <div class="receipt">
+          <div class="row">
+            <div class="k">Seçili paket</div>
+            <div class="v" id="selectedPackage">A1</div>
+          </div>
+          <div class="row">
+            <div class="k">Liste fiyatı</div>
+            <div class="v" id="basePrice">13.500 ₺</div>
+          </div>
+          <div class="row">
+            <div class="k">Kişi sayısı</div>
+            <div class="v" id="personCount">1</div>
+          </div>
+          <div class="row">
+            <div class="k">İndirim</div>
+            <div class="v discount" id="discountLabel">—</div>
+          </div>
+          <div class="row">
+            <div class="k">Toplam indirim</div>
+            <div class="v discount" id="discountAmount">0 ₺</div>
+          </div>
+          <div class="row" id="perPersonRow">
+            <div class="k">Kişi başı ortalama</div>
+            <div class="v" id="perPerson">13.500 ₺</div>
+          </div>
+          <div class="row" id="installmentRow">
+            <div class="k">2 taksit</div>
+            <div class="v" id="installment">—</div>
+          </div>
+          <div class="row hidden" id="nameRow">
+            <div class="k">Öğrenci / müşteri</div>
+            <div class="v" id="nameValue">—</div>
+          </div>
+        </div>
+
+        <div class="notice" id="ruleNotice">
+          Kampanyalar birbiriyle birleştirilmez. Devam eden öğrenci indirimi yalnızca tek kur için uygulanır.
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-primary" id="copyBtn">Özeti Kopyala</button>
+          <button class="btn btn-secondary" onclick="window.print()">Yazdır / PDF</button>
+        </div>
+      </aside>
+    </section>
+
+    <div class="footer-note">
+      AYDA Dil Akademisi iç fiyat hesaplama aracı · Veriler bu cihazın tarayıcısında çalışır, sunucuya gönderilmez.
+    </div>
+  </main>
+
+<script>
+  const defaultPrices = {
+    course: {
+      a1: 13500,
+      a2: 14000,
+      a1a2: 22000,
+      b1: 15000,
+      b2: 17000
+    },
+    private: {
+      single: 3000,
+      p8: 18000,
+      p16: 31200,
+      p36: 60000,
+      exam15: 21600
+    }
+  };
+
+  const labels = {
+    course: {
+      a1: ["A1", ""],
+      a2: ["A2", ""],
+      a1a2: ["A1 + A2", "Kombine paket"],
+      b1: ["B1", ""],
+      b2: ["B2", ""]
+    },
+    private: {
+      single: ["Tek Ders", ""],
+      p8: ["8 Ders", ""],
+      p16: ["16 Ders", ""],
+      p36: ["36 Ders", ""],
+      exam15: ["15 Ders", "Sınav hazırlık"]
+    }
+  };
+
+  let prices = JSON.parse(localStorage.getItem("aydaPrices") || "null") || structuredClone(defaultPrices);
+
+  let state = {
+    tab: "course",
+    selectedCourses: ["a1"],
+    selectedPrivate: "single"
+  };
+
+  const moneyPlain = n => new Intl.NumberFormat("tr-TR", {
+    maximumFractionDigits: 2
+  }).format(Math.max(0, Number(n) || 0)) + " ₺";
+
+  function renderChoices(){
+    const courseEl = document.getElementById("courseChoices");
+    const privateEl = document.getElementById("privateChoices");
+
+    courseEl.innerHTML = Object.entries(labels.course).map(([key,[name,sub]])=>`
+      <div class="choice">
+        <input type="checkbox"
+               name="coursePackage"
+               id="course-${key}"
+               value="${key}"
+               ${state.selectedCourses.includes(key) ? "checked" : ""}>
+        <label for="course-${key}">
+          <div>
+            <div class="name">${name}</div>
+            ${sub ? `<div class="sub">${sub}</div>` : ""}
+          </div>
+          <div class="price">${moneyPlain(prices.course[key])}</div>
+        </label>
+      </div>
+    `).join("");
+
+    privateEl.innerHTML = Object.entries(labels.private).map(([key,[name,sub]])=>`
+      <div class="choice">
+        <input type="radio"
+               name="privatePackage"
+               id="private-${key}"
+               value="${key}"
+               ${state.selectedPrivate===key ? "checked" : ""}>
+        <label for="private-${key}">
+          <div>
+            <div class="name">${name}</div>
+            ${sub ? `<div class="sub">${sub}</div>` : ""}
+          </div>
+          <div class="price">${moneyPlain(prices.private[key])}</div>
+        </label>
+      </div>
+    `).join("");
+
+    document.querySelectorAll('input[name="coursePackage"]').forEach(el=>{
+      el.addEventListener("change", ()=>{
+        handleCourseSelection(el.value, el.checked);
+      });
+    });
+
+    document.querySelectorAll('input[name="privatePackage"]').forEach(el=>{
+      el.addEventListener("change", ()=>{
+        state.selectedPrivate = el.value;
+        calculate();
+      });
+    });
+
+    updateReturningCourseSelector();
+  }
+
+  function handleCourseSelection(key, checked){
+    if(checked){
+      if(key === "a1a2"){
+        // Kombine paket A1 ve A2'nin yerine geçer.
+        state.selectedCourses = state.selectedCourses.filter(k => !["a1","a2"].includes(k));
+        if(!state.selectedCourses.includes("a1a2")) state.selectedCourses.push("a1a2");
+      } else if(["a1","a2"].includes(key)){
+        // A1 veya A2 ayrı seçilirse kombine paket kaldırılır.
+        state.selectedCourses = state.selectedCourses.filter(k => k !== "a1a2");
+        if(!state.selectedCourses.includes(key)) state.selectedCourses.push(key);
+      } else {
+        if(!state.selectedCourses.includes(key)) state.selectedCourses.push(key);
+      }
+    } else {
+      state.selectedCourses = state.selectedCourses.filter(k => k !== key);
+    }
+
+    renderChoices();
+    calculate();
+  }
+
+  function renderPriceSettings(){
+    const el = document.getElementById("priceSettings");
+    const all = [
+      ...Object.entries(labels.course).map(([key,[name]])=>({group:"course",key,name:"Kurs · "+name})),
+      ...Object.entries(labels.private).map(([key,[name,sub]])=>({group:"private",key,name:"Özel · "+name+(sub?" ("+sub+")":"")}))
+    ];
+
+    el.innerHTML = all.map(item=>`
+      <div class="field">
+        <label>${item.name}</label>
+        <input type="number" min="0" step="1"
+               data-group="${item.group}"
+               data-key="${item.key}"
+               value="${prices[item.group][item.key]}">
+      </div>
+    `).join("");
+
+    el.querySelectorAll("input").forEach(inp=>{
+      inp.addEventListener("input", ()=>{
+        const group = inp.dataset.group;
+        const key = inp.dataset.key;
+        prices[group][key] = Math.max(0, Number(inp.value) || 0);
+        localStorage.setItem("aydaPrices", JSON.stringify(prices));
+        renderChoices();
+        calculate();
+      });
+    });
+  }
+
+  function selectedCampaign(){
+    return document.querySelector('input[name="campaign"]:checked')?.value || "none";
+  }
+
+  function setCampaign(value){
+    const input = document.querySelector(`input[name="campaign"][value="${value}"]`);
+    if(input) input.checked = true;
+  }
+
+  function getSelectedCourseKeys(){
+    return state.selectedCourses.filter(k => prices.course[k] !== undefined);
+  }
+
+  function coursePackageLabel(keys){
+    if(!keys.length) return "Kurs seçilmedi";
+    return keys.map(k => labels.course[k][0]).join(" + ");
+  }
+
+  function courseListTotal(keys){
+    return keys.reduce((sum,k)=>sum + Number(prices.course[k] || 0), 0);
+  }
+
+  function ensureReturningSelector(){
+    let box = document.getElementById("returningCourseBox");
+    if(!box){
+      box = document.createElement("div");
+      box.id = "returningCourseBox";
+      box.className = "manual-box";
+      box.innerHTML = `
+        <div class="field" style="grid-column:1/-1">
+          <label for="returningCourse">Devam öğrenci indirimi hangi kura uygulansın?</label>
+          <select id="returningCourse"></select>
+        </div>
+      `;
+      document.getElementById("manualBox").insertAdjacentElement("afterend", box);
+      box.querySelector("select").addEventListener("change", calculate);
+    }
+    return box;
+  }
+
+  function updateReturningCourseSelector(){
+    const box = ensureReturningSelector();
+    const select = document.getElementById("returningCourse");
+    const keys = getSelectedCourseKeys().filter(k => k !== "a1a2");
+
+    const previous = select.value;
+    select.innerHTML = keys.map(k => `
+      <option value="${k}">${labels.course[k][0]} — ${moneyPlain(prices.course[k])}</option>
+    `).join("");
+
+    if(keys.includes(previous)) select.value = previous;
+    box.classList.toggle("show", state.tab === "course" && selectedCampaign() === "returning" && keys.length > 0);
+  }
+
+  function calculate(){
+    const campaign = selectedCampaign();
+    let persons = 1;
+    let listTotal = 0;
+    let finalTotal = 0;
+    let discountText = "—";
+    let warning = "";
+    let packageName = "";
+    let basePriceText = "";
+
+    if(state.tab === "course"){
+      const keys = getSelectedCourseKeys();
+
+      if(!keys.length){
+        listTotal = 0;
+        finalTotal = 0;
+        packageName = "Kurs seçilmedi";
+        basePriceText = "0 ₺";
+        warning = "Hesaplama için en az bir kurs seçin.";
+      } else {
+        listTotal = courseListTotal(keys);
+        finalTotal = listTotal;
+        packageName = coursePackageLabel(keys);
+        basePriceText = keys.length > 1
+          ? keys.map(k => `${labels.course[k][0]} ${moneyPlain(prices.course[k])}`).join(" + ") + ` = ${moneyPlain(listTotal)}`
+          : moneyPlain(listTotal);
+
+        if(campaign === "friend"){
+          persons = 2;
+          listTotal *= 2;
+          finalTotal = listTotal * 0.90;
+          discountText = "Arkadaşını Getir · %10";
+          basePriceText = `${moneyPlain(courseListTotal(keys))} × 2 = ${moneyPlain(listTotal)}`;
+        }
+
+        if(campaign === "family"){
+          persons = 2;
+          const onePersonTotal = courseListTotal(keys);
+          listTotal = onePersonTotal * 2;
+          finalTotal = onePersonTotal + (onePersonTotal * 0.90);
+          discountText = "Ailece Katılım · 2. kişiye %10";
+          basePriceText = `${moneyPlain(onePersonTotal)} × 2 = ${moneyPlain(listTotal)}`;
+        }
+
+        if(campaign === "returning"){
+          const eligible = keys.filter(k => k !== "a1a2");
+
+          if(!eligible.length){
+            finalTotal = listTotal;
+            discountText = "Uygulanmadı";
+            warning = "Devam eden öğrenci indirimi tek kur içindir; yalnızca A1 + A2 kombine paket seçiliyken uygulanmaz.";
+          } else {
+            updateReturningCourseSelector();
+            const chosen = document.getElementById("returningCourse").value || eligible[0];
+            const chosenPrice = Number(prices.course[chosen] || 0);
+            finalTotal = listTotal - (chosenPrice * 0.20);
+            discountText = `Devam Eden Öğrenci · ${labels.course[chosen][0]} için %20`;
+            if(keys.length > 1){
+              warning = `Devam eden öğrenci indirimi yalnızca ${labels.course[chosen][0]} kuruna uygulandı; diğer seçili kurlar liste fiyatında kaldı.`;
+            }
+          }
+        }
+
+        if(campaign === "manual"){
+          const type = document.getElementById("manualType").value;
+          let val = Math.max(0, Number(document.getElementById("manualValue").value) || 0);
+
+          if(type === "percent"){
+            val = Math.min(100, val);
+            finalTotal = listTotal * (1 - val/100);
+            discountText = `Manuel · %${val}`;
+          } else {
+            val = Math.min(listTotal, val);
+            finalTotal = listTotal - val;
+            discountText = `Manuel · ${moneyPlain(val)}`;
+          }
+        }
+      }
+    } else {
+      const key = state.selectedPrivate;
+      const price = Number(prices.private[key] || 0);
+      const [name, sub] = labels.private[key];
+      packageName = `${name}${sub ? " · "+sub : ""}`;
+      listTotal = price;
+      finalTotal = price;
+      basePriceText = moneyPlain(price);
+
+      if(["friend","family","returning"].includes(campaign)){
+        setCampaign("none");
+        discountText = "—";
+      } else if(campaign === "manual"){
+        const type = document.getElementById("manualType").value;
+        let val = Math.max(0, Number(document.getElementById("manualValue").value) || 0);
+
+        if(type === "percent"){
+          val = Math.min(100, val);
+          finalTotal = listTotal * (1 - val/100);
+          discountText = `Manuel · %${val}`;
+        } else {
+          val = Math.min(listTotal, val);
+          finalTotal = listTotal - val;
+          discountText = `Manuel · ${moneyPlain(val)}`;
+        }
+      }
+    }
+
+    const discountAmount = Math.max(0, listTotal - finalTotal);
+    const payment = document.getElementById("payment").value;
+    const installment = payment === "card" ? finalTotal / 2 : null;
+    const paymentText = payment === "card" ? "Kredi kartı · 2 taksit" : "Havale / EFT";
+    const studentName = document.getElementById("studentName").value.trim();
+
+    document.getElementById("grandTotal").textContent = moneyPlain(finalTotal);
+    document.getElementById("summaryMeta").textContent = `${packageName} · ${persons} kişi · ${paymentText}`;
+    document.getElementById("selectedPackage").textContent = packageName;
+    document.getElementById("basePrice").textContent = basePriceText;
+    document.getElementById("personCount").textContent = persons;
+    document.getElementById("discountLabel").textContent = discountText;
+    document.getElementById("discountAmount").textContent = discountAmount > 0 ? "− " + moneyPlain(discountAmount) : "0 ₺";
+    document.getElementById("perPerson").textContent = moneyPlain(persons ? finalTotal / persons : finalTotal);
+    document.getElementById("installment").textContent = installment !== null ? `2 × ${moneyPlain(installment)}` : "—";
+
+    document.getElementById("installmentRow").classList.toggle("hidden", payment !== "card");
+
+    const nameRow = document.getElementById("nameRow");
+    nameRow.classList.toggle("hidden", !studentName);
+    document.getElementById("nameValue").textContent = studentName || "—";
+
+    const warningBox = document.getElementById("warningBox");
+    warningBox.textContent = warning;
+    warningBox.classList.toggle("show", !!warning);
+
+    document.getElementById("manualBox").classList.toggle("show", campaign === "manual");
+    updateReturningCourseSelector();
+
+    window.currentSummary = {
+      packageName,
+      persons,
+      listTotal,
+      finalTotal,
+      discountAmount,
+      discountText,
+      paymentText,
+      installment,
+      studentName
+    };
+  }
+
+  function switchTab(tab){
+    state.tab = tab;
+
+    document.querySelectorAll(".tab").forEach(btn=>{
+      btn.classList.toggle("active", btn.dataset.tab === tab);
+    });
+
+    document.getElementById("coursePanel").classList.toggle("hidden", tab !== "course");
+    document.getElementById("privatePanel").classList.toggle("hidden", tab !== "private");
+
+    document.querySelectorAll(".course-only").forEach(el=>{
+      el.classList.toggle("hidden", tab !== "course");
+    });
+
+    if(tab === "private" && ["friend","family","returning"].includes(selectedCampaign())){
+      setCampaign("none");
+    }
+
+    renderChoices();
+    calculate();
+  }
+
+  document.querySelectorAll(".tab").forEach(btn=>{
+    btn.addEventListener("click", ()=>switchTab(btn.dataset.tab));
+  });
+
+  document.querySelectorAll('input[name="campaign"]').forEach(el=>{
+    el.addEventListener("change", ()=>{
+      updateReturningCourseSelector();
+      calculate();
+    });
+  });
+
+  ["manualType","manualValue","payment","studentName"].forEach(id=>{
+    document.getElementById(id).addEventListener("input", calculate);
+    document.getElementById(id).addEventListener("change", calculate);
+  });
+
+  document.getElementById("copyBtn").addEventListener("click", async ()=>{
+    const s = window.currentSummary;
+    const lines = [
+      "AYDA Fiyat Hesabı",
+      s.studentName ? `Öğrenci/Müşteri: ${s.studentName}` : null,
+      `Paket / Kurlar: ${s.packageName}`,
+      `Liste toplamı: ${moneyPlain(s.listTotal)}`,
+      `Kişi sayısı: ${s.persons}`,
+      `İndirim: ${s.discountText}`,
+      `Toplam indirim: ${moneyPlain(s.discountAmount)}`,
+      `Son fiyat: ${moneyPlain(s.finalTotal)}`,
+      `Ödeme: ${s.paymentText}`,
+      s.installment !== null ? `Taksit: 2 × ${moneyPlain(s.installment)}` : null
+    ].filter(Boolean).join("
+");
+
+    try{
+      await navigator.clipboard.writeText(lines);
+      const btn = document.getElementById("copyBtn");
+      const old = btn.textContent;
+      btn.textContent = "Kopyalandı ✓";
+      setTimeout(()=>btn.textContent=old, 1400);
+    }catch{
+      alert(lines);
+    }
+  });
+
+  renderChoices();
+  renderPriceSettings();
+  calculate();
+</script>
+</body>
+</html>
