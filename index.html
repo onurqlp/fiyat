@@ -685,7 +685,16 @@
     }
   };
 
-  let prices = JSON.parse(localStorage.getItem("aydaPrices") || "null") || structuredClone(defaultPrices);
+  let prices;
+  try {
+    prices = JSON.parse(localStorage.getItem("aydaPrices") || "null") || structuredClone(defaultPrices);
+  } catch (e) {
+    prices = structuredClone(defaultPrices);
+  }
+
+  function savePrices(){
+    try { localStorage.setItem("aydaPrices", JSON.stringify(prices)); } catch (e) {}
+  }
 
   let state = {
     tab: "course",
@@ -794,7 +803,7 @@
         const group = inp.dataset.group;
         const key = inp.dataset.key;
         prices[group][key] = Math.max(0, Number(inp.value) || 0);
-        localStorage.setItem("aydaPrices", JSON.stringify(prices));
+        savePrices();
         renderChoices();
         calculate();
       });
@@ -811,7 +820,7 @@
   }
 
   function getSelectedCourseKeys(){
-    return state.selectedCourses.filter(k => prices.course[k] !== undefined);
+    return Object.keys(labels.course).filter(k => state.selectedCourses.includes(k) && prices.course[k] !== undefined);
   }
 
   function coursePackageLabel(keys){
@@ -1054,8 +1063,7 @@
       `Son fiyat: ${moneyPlain(s.finalTotal)}`,
       `Ödeme: ${s.paymentText}`,
       s.installment !== null ? `Taksit: 2 × ${moneyPlain(s.installment)}` : null
-    ].filter(Boolean).join("
-");
+    ].filter(Boolean).join("\n");
 
     try{
       await navigator.clipboard.writeText(lines);
