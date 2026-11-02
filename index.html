@@ -457,7 +457,34 @@
       .actions{padding:0 17px 17px}
     }
 
+    .payment-help{font-size:12px;line-height:1.5;color:var(--muted);margin:12px 0 0}
+    .payment-preview{padding:2px 20px 18px;border-top:1px solid var(--line)}
+    .payment-preview h3{margin:16px 0 0;font-size:17px;color:var(--ink)}
+    .schedule-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:18px 0 10px;font-size:13px;font-weight:900;color:var(--navy)}
+    .schedule-heading span{font-size:12px;color:var(--muted);font-weight:700}
+    .schedule-list{display:grid;gap:8px;max-height:325px;overflow:auto}
+    .schedule-item{display:grid;grid-template-columns:85px minmax(140px,1fr) auto;gap:10px;align-items:center;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:#f8faff}
+    .schedule-item label{font-size:12px;font-weight:850;white-space:nowrap}
+    .schedule-item input{width:100%;min-width:0;min-height:38px;padding:6px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink)}
+    .schedule-amount{font-size:13px;font-weight:850;text-align:right;white-space:nowrap}
+    .message-label{display:block;margin:18px 0 8px;font-size:13px;font-weight:900;color:var(--navy)}
+    .payment-message{display:block;width:100%;min-height:265px;padding:14px;background:#fafbfe;border:1px solid var(--line);border-radius:12px;color:var(--ink);font:13px/1.6 ui-sans-serif,system-ui,sans-serif;resize:vertical}
+    .copy-warning{margin:10px 0 0;font-size:12px;font-weight:750;color:var(--danger)}
+    .btn-wide{grid-column:1/-1}
+    .print-sheet{display:none}
+    @media (max-width:560px){
+      .payment-preview{padding:2px 17px 17px}
+      .schedule-item{grid-template-columns:72px minmax(116px,1fr);gap:7px}
+      .schedule-amount{grid-column:2;text-align:left}
+      .actions{grid-template-columns:1fr 1fr}
+      .actions .btn{height:auto;min-height:46px;padding:9px 10px;font-size:12px}
+    }
     @media print{
+      .wrap{display:none!important}
+      .print-sheet{display:block!important;width:100%;margin:0;padding:0;color:#10204a}
+      .print-sheet h1{font-size:21px;letter-spacing:.03em;margin:0 0 5px}
+      .print-subtitle{color:#08245f;border-bottom:2px solid #08245f;padding-bottom:10px;font-size:13px;font-weight:800}
+      .print-sheet pre{white-space:pre-wrap;word-break:break-word;font:13px/1.65 Arial,sans-serif;margin:16px 0 0}
       body{background:#fff}
       .wrap{width:100%;margin:0}
       .topbar,.calculator-card,.actions,.footer-note{display:none !important}
@@ -572,10 +599,35 @@
               </select>
             </div>
             <div class="field">
-              <label for="studentName">Öğrenci / müşteri adı (opsiyonel)</label>
-              <input id="studentName" type="text" placeholder="Örn. Ayşe Yılmaz">
+              <label for="studentName">Öğrenci adı soyadı (mesaj için gerekli)</label>
+              <input id="studentName" type="text" maxlength="120" autocomplete="off" placeholder="Örn. Ayşe Yılmaz">
             </div>
           </div>
+
+          <div class="inline-fields" style="margin-top:12px">
+            <div class="field">
+              <label for="installmentCount">Taksit sayısı</label>
+              <select id="installmentCount" aria-label="Taksit sayısı">
+                <option value="1">Peşin / tek ödeme</option>
+                <option value="2">2 taksit</option>
+                <option value="3">3 taksit</option>
+                <option value="4">4 taksit</option>
+                <option value="5">5 taksit</option>
+                <option value="6">6 taksit</option>
+                <option value="7">7 taksit</option>
+                <option value="8">8 taksit</option>
+                <option value="9">9 taksit</option>
+                <option value="10">10 taksit</option>
+                <option value="11">11 taksit</option>
+                <option value="12">12 taksit</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="firstPaymentDate">İlk ödeme / taksit tarihi</label>
+              <input id="firstPaymentDate" type="date" aria-label="İlk ödeme tarihi">
+            </div>
+          </div>
+          <p class="payment-help">Tarihler ilk ödeme gününden itibaren aylık oluşturulur. Aşağıdaki ödeme planında her taksidin tarihini ayrıca düzenleyebilirsiniz. Kartla ödemede mevcut 2 taksit seçeneği korunur; banka ekstre tarihleri farklı olabilir.</p>
 
           <details>
             <summary>Fiyatları düzenle</summary>
@@ -621,7 +673,7 @@
             <div class="v" id="perPerson">13.500 ₺</div>
           </div>
           <div class="row" id="installmentRow">
-            <div class="k">2 taksit</div>
+            <div class="k">Ödeme planı</div>
             <div class="v" id="installment">—</div>
           </div>
           <div class="row hidden" id="nameRow">
@@ -634,9 +686,19 @@
           Kampanyalar birleştirilebilir. “Arkadaşını Getir” ve “Ailece Katılım” aynı anda seçilemez. Devam eden öğrenci %20 indirimi seçili tüm kurslara uygulanır.
         </div>
 
+        <section class="payment-preview" aria-label="Öğrenci ödeme mesajı">
+          <h3>Öğrenciye gönderilecek ödeme bilgileri</h3>
+          <p class="payment-help">Mesaj otomatik hazırlanır. Taksit tarihlerini değiştirmek isterseniz aşağıdaki takvimden düzenleyin.</p>
+          <div class="schedule-heading">Taksit takvimi <span id="scheduleCount"></span></div>
+          <div class="schedule-list" id="scheduleList"></div>
+          <label class="message-label" for="paymentMessage">WhatsApp mesajı önizlemesi</label>
+          <textarea class="payment-message" id="paymentMessage" readonly spellcheck="false"></textarea>
+          <p id="copyWarning" class="copy-warning hidden" role="alert"></p>
+        </section>
         <div class="actions">
-          <button class="btn btn-primary" id="copyBtn">Özeti Kopyala</button>
-          <button class="btn btn-secondary" onclick="window.print()">Yazdır / PDF</button>
+          <button class="btn btn-primary" id="copyBtn">Mesajı Kopyala</button>
+          <button class="btn btn-secondary" id="whatsappBtn">WhatsApp'ta Aç</button>
+          <button class="btn btn-secondary btn-wide" id="printBtn">Ödeme Planını Yazdır / PDF</button>
         </div>
       </aside>
     </section>
@@ -645,6 +707,11 @@
       AYDA Dil Akademisi iç fiyat hesaplama aracı · Veriler bu cihazın tarayıcısında çalışır, sunucuya gönderilmez.
     </div>
   </main>
+  <article class="print-sheet" aria-label="Yazdırılabilir öğrenci ödeme planı">
+    <h1>AYDA DİL AKADEMİSİ</h1>
+    <div class="print-subtitle">KAYIT VE ÖDEME BİLGİLERİ</div>
+    <pre id="printContent"></pre>
+  </article>
 
 <script>
   const defaultPrices = {
@@ -701,6 +768,116 @@
   const moneyPlain = n => new Intl.NumberFormat("tr-TR", {
     maximumFractionDigits: 2
   }).format(Math.max(0, Number(n) || 0)) + " ₺";
+
+  // Taksit tarihleri ilk ödeme gününden başlayarak takvim ayı bazında üretilir.
+  // Örneğin 31 Ocak -> 28 Şubat -> 31 Mart. Her satır ayrı ayrı değiştirilebilir.
+  const scheduleDateOverrides = {};
+  let transferInstallments = 1;
+
+  const pad2 = n => String(n).padStart(2, "0");
+
+  function localToday(){
+    const d = new Date();
+    return d.getFullYear() + "-" + pad2(d.getMonth()+1) + "-" + pad2(d.getDate());
+  }
+
+  function addCalendarMonths(iso, offset){
+    const match = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(iso || "");
+    if(!match) return "";
+    const year = Number(match[1]);
+    const month = Number(match[2])-1;
+    const day = Number(match[3]);
+    const target = new Date(Date.UTC(year, month + offset, 1));
+    const y = target.getUTCFullYear();
+    const m = target.getUTCMonth();
+    const last = new Date(Date.UTC(y, m+1, 0)).getUTCDate();
+    return y + "-" + pad2(m+1) + "-" + pad2(Math.min(day,last));
+  }
+
+  function dateTr(iso){
+    const m = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(iso || "");
+    return m ? m[3] + "." + m[2] + "." + m[1] : "Tarih seçilmedi";
+  }
+
+  function generateSchedule(total, count, firstDate){
+    if(!firstDate || count < 1) return [];
+    const cents = Math.round(Math.max(0, Number(total) || 0) * 100);
+    const each = Math.floor(cents/count);
+    return Array.from({length:count},(_,i)=>({
+      number: i+1,
+      date: scheduleDateOverrides[i] || addCalendarMonths(firstDate,i),
+      amount: (i === count-1 ? cents-each*(count-1) : each)/100
+    }));
+  }
+
+  function syncPaymentControls(){
+    const card = document.getElementById("payment").value === "card";
+    const el = document.getElementById("installmentCount");
+    if(card){
+      if(!el.disabled) transferInstallments = Number(el.value) || 1;
+      el.value = "2";
+      el.disabled = true;
+    } else {
+      el.disabled = false;
+      el.value = String(transferInstallments);
+    }
+    Object.keys(scheduleDateOverrides).forEach(k=>delete scheduleDateOverrides[k]);
+    calculate();
+  }
+
+  function renderScheduleRows(schedule){
+    const holder = document.getElementById("scheduleList");
+    holder.replaceChildren();
+    document.getElementById("scheduleCount").textContent = schedule.length === 1 ? "Tek ödeme" : schedule.length + " taksit";
+    for(const item of schedule){
+      const wrapper = document.createElement("div");
+      wrapper.className = "schedule-item";
+      const label = document.createElement("label");
+      label.textContent = item.number + ". ödeme";
+      const input = document.createElement("input");
+      input.type = "date";
+      input.value = item.date;
+      input.setAttribute("aria-label", item.number + ". taksit tarihi");
+      input.addEventListener("change",()=>{
+        scheduleDateOverrides[item.number-1] = input.value;
+        calculate();
+      });
+      const amount = document.createElement("div");
+      amount.className = "schedule-amount";
+      amount.textContent = moneyPlain(item.amount);
+      wrapper.append(label,input,amount);
+      holder.appendChild(wrapper);
+    }
+  }
+
+  function buildPaymentMessage(s){
+    const result = [
+      "AYDA DİL AKADEMİSİ",
+      "KAYIT VE ÖDEME BİLGİLERİ",
+      "",
+      "Öğrenci: " + (s.studentName || "[Öğrenci adı giriniz]"),
+      "Kayıt olunan " + (s.tab === "course" ? "seviye/paket" : "özel ders paketi") + ": " + s.packageName
+    ];
+    if(s.persons > 1) result.push("Katılımcı sayısı: " + s.persons);
+    result.push("");
+    result.push("EĞİTİM VE ÜCRET");
+    for(const line of s.packageLines) result.push("• " + line);
+    result.push("Liste toplamı: " + moneyPlain(s.listTotal));
+    if(s.discountAmount > 0){
+      result.push("İndirim: " + s.discountText);
+      result.push("Toplam indirim: −" + moneyPlain(s.discountAmount));
+    }
+    result.push("ÖDENECEK TOPLAM: " + moneyPlain(s.finalTotal));
+    result.push("");
+    result.push("ÖDEME PLANI");
+    result.push("Ödeme yöntemi: " + s.paymentText);
+    result.push("Ödeme şekli: " + (s.count === 1 ? "Peşin / tek ödeme" : s.count + " taksit"));
+    for(const item of s.schedule){
+      result.push(item.number + ". " + (s.count === 1 ? "ödeme" : "taksit") + " | " + dateTr(item.date) + " | " + moneyPlain(item.amount));
+    }
+    if(s.payment === "card") result.push("Not: Kredi kartı ekstre ve tahsilat tarihleri bankaya göre değişebilir.");
+    return result.join("\n");
+  }
 
   function renderChoices(){
     const courseEl = document.getElementById("courseChoices");
@@ -914,7 +1091,10 @@
     const discountAmount = Math.max(0, listTotal - finalTotal);
     const discountText = applied.length ? applied.join(" + ") : "—";
     const payment = document.getElementById("payment").value;
-    const installment = payment === "card" ? finalTotal / 2 : null;
+    const count = payment === "card" ? 2 : Math.max(1, Math.min(12, Number(document.getElementById("installmentCount").value) || 1));
+    const firstDate = document.getElementById("firstPaymentDate").value;
+    const schedule = generateSchedule(finalTotal,count,firstDate);
+    const installment = schedule.length > 1 ? schedule[0].amount : null;
     const paymentText = payment === "card" ? "Kredi kartı · 2 taksit" : "Havale / EFT";
     const studentName = document.getElementById("studentName").value.trim();
 
@@ -956,8 +1136,8 @@
     document.getElementById("discountLabel").textContent = discountText;
     document.getElementById("discountAmount").textContent = discountAmount > 0 ? "− " + moneyPlain(discountAmount) : "0 ₺";
     document.getElementById("perPerson").textContent = moneyPlain(persons ? finalTotal / persons : finalTotal);
-    document.getElementById("installment").textContent = installment !== null ? `2 × ${moneyPlain(installment)}` : "—";
-    document.getElementById("installmentRow").classList.toggle("hidden", payment !== "card");
+    document.getElementById("installment").textContent = count > 1 ? count + " taksit" : "Peşin / tek ödeme";
+    document.getElementById("installmentRow").classList.remove("hidden");
 
     const nameRow = document.getElementById("nameRow");
     nameRow.classList.toggle("hidden", !studentName);
@@ -969,17 +1149,32 @@
 
     document.getElementById("manualBox").classList.toggle("show", campaignChecked("manual"));
 
+    const packageLines = state.tab === "course"
+      ? getSelectedCourseKeys().map(k=> labels.course[k][0] + ": " + moneyPlain(prices.course[k]))
+      : [packageName + ": " + moneyPlain(listTotal)];
     window.currentSummary = {
+      tab: state.tab,
+      hasSelection: state.tab !== "course" || getSelectedCourseKeys().length > 0,
       packageName,
+      packageLines,
       persons,
       listTotal,
       finalTotal,
       discountAmount,
       discountText,
+      payment,
       paymentText,
       installment,
+      count,
+      firstDate,
+      schedule,
       studentName
     };
+    const message = buildPaymentMessage(window.currentSummary);
+    window.currentSummary.message = message;
+    document.getElementById("paymentMessage").value = message;
+    document.getElementById("printContent").textContent = message;
+    renderScheduleRows(schedule);
   }
 
   function switchTab(tab){
@@ -1017,37 +1212,76 @@
     });
   });
 
-  ["manualType","manualValue","payment","studentName"].forEach(id=>{
+  ["manualType","manualValue","payment","studentName","installmentCount","firstPaymentDate"].forEach(id=>{
     document.getElementById(id).addEventListener("input", calculate);
     document.getElementById(id).addEventListener("change", calculate);
   });
 
-  document.getElementById("copyBtn").addEventListener("click", async ()=>{
-    const s = window.currentSummary;
-    const lines = [
-      "AYDA Fiyat Hesabı",
-      s.studentName ? `Öğrenci/Müşteri: ${s.studentName}` : null,
-      `Paket / Kurlar: ${s.packageName}`,
-      `Liste toplamı: ${moneyPlain(s.listTotal)}`,
-      `Kişi sayısı: ${s.persons}`,
-      `İndirimler: ${s.discountText}`,
-      `Toplam indirim: ${moneyPlain(s.discountAmount)}`,
-      `Son fiyat: ${moneyPlain(s.finalTotal)}`,
-      `Ödeme: ${s.paymentText}`,
-      s.installment !== null ? `Taksit: 2 × ${moneyPlain(s.installment)}` : null
-    ].filter(Boolean).join("\n");
-
-    try{
-      await navigator.clipboard.writeText(lines);
-      const btn = document.getElementById("copyBtn");
-      const old = btn.textContent;
-      btn.textContent = "Kopyalandı ✓";
-      setTimeout(()=>btn.textContent=old, 1400);
-    }catch{
-      alert(lines);
+  document.getElementById("payment").addEventListener("change", syncPaymentControls);
+  document.getElementById("installmentCount").addEventListener("change",()=>{
+    if(document.getElementById("payment").value === "transfer"){
+      transferInstallments = Number(document.getElementById("installmentCount").value) || 1;
     }
+    Object.keys(scheduleDateOverrides).forEach(k=>delete scheduleDateOverrides[k]);
+    calculate();
+  });
+  document.getElementById("firstPaymentDate").addEventListener("change",()=>{
+    Object.keys(scheduleDateOverrides).forEach(k=>delete scheduleDateOverrides[k]);
+    calculate();
   });
 
+  function checkReady(){
+    const s = window.currentSummary;
+    const warning = document.getElementById("copyWarning");
+    let error = "";
+    if(!s.hasSelection) error = "Ödeme planı için en az bir kurs seçin.";
+    else if(!s.studentName) error = "Öğrenci adını girerek mesajı tamamlayın.";
+    else if(!s.firstDate || s.schedule.some(x=>!x.date)) error = "Tüm taksit tarihlerini doldurun.";
+    warning.textContent = error;
+    warning.classList.toggle("hidden", !error);
+    if(error){
+      if(!s.studentName) document.getElementById("studentName").focus();
+      else if(!s.firstDate) document.getElementById("firstPaymentDate").focus();
+      return false;
+    }
+    return true;
+  }
+
+  document.getElementById("copyBtn").addEventListener("click",async()=>{
+    if(!checkReady()) return;
+    const btn = document.getElementById("copyBtn");
+    const message = window.currentSummary.message;
+    let copied = false;
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        await navigator.clipboard.writeText(message);
+        copied = true;
+      }
+    }catch(e){}
+    if(!copied){
+      const input = document.getElementById("paymentMessage");
+      input.focus();
+      input.select();
+      try{ copied = document.execCommand("copy"); }catch(e){}
+    }
+    if(copied){
+      btn.textContent = "Kopyalandı ✓";
+      setTimeout(()=>btn.textContent="Mesajı Kopyala",1600);
+    }else{
+      document.getElementById("copyWarning").textContent = "Otomatik kopyalanamadı. Yukarıdaki mesajı seçip kopyalayabilirsiniz.";
+      document.getElementById("copyWarning").classList.remove("hidden");
+    }
+  });
+  document.getElementById("whatsappBtn").addEventListener("click",()=>{
+    if(!checkReady()) return;
+    window.open("https://api.whatsapp.com/send?text="+encodeURIComponent(window.currentSummary.message),"_blank","noopener,noreferrer");
+  });
+  document.getElementById("printBtn").addEventListener("click",()=>{
+    if(!checkReady()) return;
+    window.print();
+  });
+
+  document.getElementById("firstPaymentDate").value = localToday();
   renderChoices();
   renderPriceSettings();
   calculate();
