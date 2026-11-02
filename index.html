@@ -458,6 +458,17 @@
     }
 
     .payment-help{font-size:12px;line-height:1.5;color:var(--muted);margin:12px 0 0}
+    .manual-total-panel{margin-top:17px;padding:15px;border:1px solid #ccdaf2;background:#f1f6ff;border-radius:13px}
+    .manual-total-title{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+    .manual-total-title label{font-size:13px;font-weight:900;color:var(--navy)}
+    .manual-total-title label span{font-size:11px;font-weight:600;color:var(--muted)}
+    .reset-total{border:0;background:#fff;color:var(--navy);font-size:11px;font-weight:800;padding:7px 9px;border-radius:8px;text-decoration:underline}
+    .manual-total-controls{display:flex;align-items:center;gap:10px;margin-top:11px}
+    .manual-total-controls input{min-width:0;width:50%;height:47px;border:1.5px solid #9eb3d7;background:#fff;border-radius:10px;padding:0 12px;font-weight:800;font-size:18px;color:var(--navy)}
+    .manual-total-controls input:focus{outline:3px solid #cbdafa}
+    .auto-price{font-size:12px;line-height:1.4;color:#4e6489;font-weight:750}
+    .manual-price-status{margin:8px 0 0;color:#087855;font-weight:800;font-size:12px}
+    @media (max-width:560px){.manual-total-panel{padding:12px}.manual-total-controls input{width:54%}}
     .payment-preview{padding:2px 20px 18px;border-top:1px solid var(--line)}
     .payment-preview h3{margin:16px 0 0;font-size:17px;color:var(--ink)}
     .schedule-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:18px 0 10px;font-size:13px;font-weight:900;color:var(--navy)}
@@ -628,6 +639,19 @@
             </div>
           </div>
           <p class="payment-help">Tarihler ilk ödeme gününden itibaren aylık oluşturulur. Aşağıdaki ödeme planında her taksidin tarihini ayrıca düzenleyebilirsiniz. Kartla ödemede mevcut 2 taksit seçeneği korunur; banka ekstre tarihleri farklı olabilir.</p>
+
+          <div class="manual-total-panel">
+            <div class="manual-total-title">
+              <label for="customFinalPrice">Nihai toplam ücreti düzenle <span>(isteğe bağlı)</span></label>
+              <button type="button" class="reset-total" id="resetCustomTotal">Otomatik fiyata dön</button>
+            </div>
+            <div class="manual-total-controls">
+              <input id="customFinalPrice" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Örn. 19000" aria-describedby="customTotalDescription">
+              <div class="auto-price" id="autoPriceLabel">Hesaplanan: —</div>
+            </div>
+            <p id="customTotalDescription" class="payment-help">Ek indirim için anlaşmaya vardığınız nihai tutarı yazın. Boş bırakırsanız hesaplanan fiyat kullanılır. Ödeme planı, taksitler ve öğrenci mesajı otomatik yenilenir.</p>
+            <p class="manual-price-status" id="manualPriceStatus" aria-live="polite"></p>
+          </div>
 
           <details>
             <summary>Fiyatları düzenle</summary>
@@ -864,9 +888,10 @@
     for(const line of s.packageLines) result.push("• " + line);
     result.push("Liste toplamı: " + moneyPlain(s.listTotal));
     if(s.discountAmount > 0){
-      result.push("İndirim: " + s.discountText);
+      result.push("İndirimler: " + s.discountText);
       result.push("Toplam indirim: −" + moneyPlain(s.discountAmount));
     }
+    if(s.additionalCharge > 0) result.push("Elle belirlenen fiyat farkı: +" + moneyPlain(s.additionalCharge));
     result.push("ÖDENECEK TOPLAM: " + moneyPlain(s.finalTotal));
     result.push("");
     result.push("ÖDEME PLANI");
@@ -877,6 +902,11 @@
     }
     if(s.payment === "card") result.push("Not: Kredi kartı ekstre ve tahsilat tarihleri bankaya göre değişebilir.");
     return result.join("\n");
+  }
+
+  function clearCustomTotal(){
+    const el = document.getElementById("customFinalPrice");
+    if(el) el.value = "";
   }
 
   function renderChoices(){
@@ -924,6 +954,7 @@
     document.querySelectorAll('input[name="privatePackage"]').forEach(el=>{
       el.addEventListener("change", ()=>{
         state.selectedPrivate = el.value;
+        clearCustomTotal();
         calculate();
       });
     });
@@ -944,6 +975,7 @@
       state.selectedCourses = state.selectedCourses.filter(k => k !== key);
     }
 
+    clearCustomTotal();
     renderChoices();
     calculate();
   }
@@ -971,6 +1003,7 @@
         const key = inp.dataset.key;
         prices[group][key] = Math.max(0, Number(inp.value) || 0);
         savePrices();
+        clearCustomTotal();
         renderChoices();
         calculate();
       });
@@ -1088,6 +1121,31 @@
       }
     }
 
+    const calculatedTotal = Math.round(finalTotal * 100) / 100;
+    const priceInput = document.getElementById("customFinalPrice");
+    const customRaw = priceInput.value.trim();
+    const hasManualTotal = customRaw !== "";
+    const invalidManualTotal = priceInput.validity.badInput || (hasManualTotal && (!Number.isFinite(Number(customRaw)) || Number(customRaw) < 0));
+    let additionalDiscount = 0;
+    let additionalCharge = 0;
+    if(hasManualTotal && !invalidManualTotal){
+      finalTotal = Math.round(Number(customRaw) * 100) / 100;
+      additionalDiscount = Math.max(0, calculatedTotal - finalTotal);
+      additionalCharge = Math.max(0, finalTotal - calculatedTotal);
+      if(additionalDiscount > 0) applied.push("Ek özel indirim " + moneyPlain(additionalDiscount));
+      if(additionalCharge > 0) applied.push("Özel fiyat düzenlemesi +" + moneyPlain(additionalCharge));
+    }
+    document.getElementById("autoPriceLabel").textContent = "Hesaplanan: " + moneyPlain(calculatedTotal);
+    const status = document.getElementById("manualPriceStatus");
+    status.textContent = invalidManualTotal
+      ? "Geçerli, sıfır veya daha büyük bir tutar girin."
+      : additionalDiscount > 0
+        ? "Ek indirim: −" + moneyPlain(additionalDiscount)
+        : additionalCharge > 0
+          ? "Elle belirlenen fiyat farkı: +" + moneyPlain(additionalCharge)
+          : hasManualTotal ? "Ödenecek tutar elle belirlendi." : "";
+    status.style.color = invalidManualTotal ? "var(--danger)" : "var(--ok)";
+
     const discountAmount = Math.max(0, listTotal - finalTotal);
     const discountText = applied.length ? applied.join(" + ") : "—";
     const payment = document.getElementById("payment").value;
@@ -1162,6 +1220,11 @@
       finalTotal,
       discountAmount,
       discountText,
+      calculatedTotal,
+      additionalDiscount,
+      additionalCharge,
+      hasManualTotal,
+      invalidManualTotal,
       payment,
       paymentText,
       installment,
@@ -1178,6 +1241,7 @@
   }
 
   function switchTab(tab){
+    clearCustomTotal();
     state.tab = tab;
 
     document.querySelectorAll(".tab").forEach(btn=>{
@@ -1208,13 +1272,24 @@
       if(el.checked && el.value === "family"){
         document.getElementById("camp-friend").checked = false;
       }
+      clearCustomTotal();
       calculate();
     });
   });
 
   ["manualType","manualValue","payment","studentName","installmentCount","firstPaymentDate"].forEach(id=>{
-    document.getElementById(id).addEventListener("input", calculate);
-    document.getElementById(id).addEventListener("change", calculate);
+    const refresh = ()=>{
+      if(id === "manualType" || id === "manualValue") clearCustomTotal();
+      calculate();
+    };
+    document.getElementById(id).addEventListener("input", refresh);
+    document.getElementById(id).addEventListener("change", refresh);
+  });
+
+  document.getElementById("customFinalPrice").addEventListener("input",calculate);
+  document.getElementById("resetCustomTotal").addEventListener("click",()=>{
+    clearCustomTotal();
+    calculate();
   });
 
   document.getElementById("payment").addEventListener("change", syncPaymentControls);
@@ -1235,12 +1310,14 @@
     const warning = document.getElementById("copyWarning");
     let error = "";
     if(!s.hasSelection) error = "Ödeme planı için en az bir kurs seçin.";
+    else if(s.invalidManualTotal) error = "Nihai toplam için geçerli bir tutar girin.";
     else if(!s.studentName) error = "Öğrenci adını girerek mesajı tamamlayın.";
     else if(!s.firstDate || s.schedule.some(x=>!x.date)) error = "Tüm taksit tarihlerini doldurun.";
     warning.textContent = error;
     warning.classList.toggle("hidden", !error);
     if(error){
-      if(!s.studentName) document.getElementById("studentName").focus();
+      if(s.invalidManualTotal) document.getElementById("customFinalPrice").focus();
+      else if(!s.studentName) document.getElementById("studentName").focus();
       else if(!s.firstDate) document.getElementById("firstPaymentDate").focus();
       return false;
     }
