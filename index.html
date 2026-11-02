@@ -458,6 +458,11 @@
     }
 
     .payment-help{font-size:12px;line-height:1.5;color:var(--muted);margin:12px 0 0}
+    .bank-option{display:flex;align-items:flex-start;gap:12px;padding:14px;margin-top:14px;background:#f2faf6;border:1px solid #b8e2cd;border-radius:13px;cursor:pointer}
+    .bank-option input{width:20px;height:20px;flex-shrink:0;accent-color:var(--navy);cursor:pointer;margin:1px 0 0}
+    .bank-option span{display:grid;gap:4px;min-width:0}
+    .bank-option strong{font-size:13px;color:var(--ink);line-height:1.4}
+    .bank-option small{font-size:11px;color:var(--muted);line-height:1.45}
     .manual-total-panel{margin-top:17px;padding:15px;border:1px solid #ccdaf2;background:#f1f6ff;border-radius:13px}
     .manual-total-title{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
     .manual-total-title label{font-size:13px;font-weight:900;color:var(--navy)}
@@ -639,6 +644,14 @@
             </div>
           </div>
           <p class="payment-help">Tarihler ilk ödeme gününden itibaren aylık oluşturulur. Aşağıdaki ödeme planında her taksidin tarihini ayrıca düzenleyebilirsiniz. Kartla ödemede mevcut 2 taksit seçeneği korunur; banka ekstre tarihleri farklı olabilir.</p>
+
+          <label class="bank-option" for="includeBankDetails">
+            <input type="checkbox" id="includeBankDetails" checked>
+            <span>
+              <strong>Banka bilgilerini öğrenci mesajına ekle</strong>
+              <small>İşaretliyse Garanti Bankası IBAN bilgileri mesaja ve PDF'ye eklenir. İstemiyorsanız tiki kaldırın.</small>
+            </span>
+          </label>
 
           <div class="manual-total-panel">
             <div class="manual-total-title">
@@ -901,6 +914,15 @@
       result.push(item.number + ". " + (s.count === 1 ? "ödeme" : "taksit") + " | " + dateTr(item.date) + " | " + moneyPlain(item.amount));
     }
     if(s.payment === "card") result.push("Not: Kredi kartı ekstre ve tahsilat tarihleri bankaya göre değişebilir.");
+    if(s.includeBankDetails){
+      result.push("");
+      result.push("AYDA Dil Akademisi – Banka Bilgileri");
+      result.push("Banka: Garanti Bankası");
+      result.push("Alıcı: Sami Onuralp Özkan Esra Çalt Adi Ortaklığı");
+      result.push("IBAN: TR76 0006 2000 4110 0006 2883 30");
+      result.push("");
+      result.push("Açıklamaya tam isminizi ve telefon numaranızı yazınız.");
+    }
     return result.join("\n");
   }
 
@@ -1227,6 +1249,7 @@
       invalidManualTotal,
       payment,
       paymentText,
+      includeBankDetails: document.getElementById("includeBankDetails").checked,
       installment,
       count,
       firstDate,
@@ -1292,7 +1315,11 @@
     calculate();
   });
 
-  document.getElementById("payment").addEventListener("change", syncPaymentControls);
+  document.getElementById("includeBankDetails").addEventListener("change",calculate);
+  document.getElementById("payment").addEventListener("change",()=>{
+    document.getElementById("includeBankDetails").checked = document.getElementById("payment").value === "transfer";
+    syncPaymentControls();
+  });
   document.getElementById("installmentCount").addEventListener("change",()=>{
     if(document.getElementById("payment").value === "transfer"){
       transferInstallments = Number(document.getElementById("installmentCount").value) || 1;
