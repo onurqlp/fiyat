@@ -206,6 +206,7 @@
       margin-top:3px;
     }
     .choice input:disabled + label{opacity:.62;cursor:not-allowed;background:#f3f5f9}
+    .campaign input:disabled + label{opacity:.58;cursor:not-allowed}
     .choice input:disabled + label .price{font-size:12px;white-space:normal;text-align:right}
     .course-history-note{font-size:12px;line-height:1.5;color:#52627f;background:#f1f6ff;border:1px solid #d8e3f7;border-radius:11px;padding:10px 12px;margin:0 0 12px}
 
@@ -968,6 +969,14 @@
     return [...result,key];
   }
 
+  // Geçmişteki A1 işaretlenirse yeni A1+A2 paketinin A2 kısmını korur.
+  function removePreviousFromNew(keys,previousKey){
+    const bought = courseUnits(previousKey);
+    return keys.flatMap(key=>{
+      const remaining = courseUnits(key).filter(unit=>!bought.includes(unit));
+      return key === "a1a2" && remaining.length === 2 ? ["a1a2"] : remaining;
+    });
+  }
   function syncReturningCampaign(){
     const el = document.getElementById("camp-returning");
     el.disabled = state.previousCourses.length === 0;
@@ -1046,7 +1055,7 @@
     const hadHistory = state.previousCourses.length > 0;
     if(checked){
       state.previousCourses = addCourseKey(state.previousCourses,key,false);
-      state.selectedCourses = state.selectedCourses.filter(existing => !courseOverlaps(existing,key));
+      state.selectedCourses = removePreviousFromNew(state.selectedCourses,key);
     }else{
       state.previousCourses = state.previousCourses.filter(existing => existing !== key);
     }
