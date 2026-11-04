@@ -206,9 +206,12 @@
       margin-top:3px;
     }
     .choice input:disabled + label{opacity:.62;cursor:not-allowed;background:#f3f5f9}
-    .campaign input:disabled + label{opacity:.58;cursor:not-allowed}
-    .choice input:disabled + label .price{font-size:12px;white-space:normal;text-align:right}
-    .course-history-note{font-size:12px;line-height:1.5;color:#52627f;background:#f1f6ff;border:1px solid #d8e3f7;border-radius:11px;padding:10px 12px;margin:0 0 12px}
+    .returning-options{padding:13px 14px;margin-top:10px;border:1px solid #cbdafa;border-radius:13px;background:#f8faff}
+    .returning-options strong{display:block;margin-bottom:8px;font-size:13px;color:var(--navy)}
+    .returning-options .course-discount-options{display:flex;gap:8px;flex-wrap:wrap}
+    .course-discount-options label{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;font-weight:750;font-size:13px;background:#fff;cursor:pointer}
+    .course-discount-options input{position:static;opacity:1;pointer-events:auto;accent-color:var(--navy)}
+    .returning-options small{display:block;margin-top:8px;font-size:12px;line-height:1.4;color:var(--muted)}
 
     .price{
       font-weight:900;
@@ -550,11 +553,7 @@
           </div>
 
           <div id="coursePanel">
-            <div class="section-title">1A. Önceden alınan kurlar <span style="font-weight:700;text-transform:none;letter-spacing:0">(varsa işaretle)</span></div>
-            <p class="course-history-note">Öğrencinin daha önce satın aldığı kurları seçin. Bunlar yeni ücretin ve taksitlerin içine girmez. Daha önce A1+A2 paketini aldıysa birleşik seçeneği kullanın.</p>
-            <div class="choices" id="previousCourseChoices"></div>
-            <div class="section-title">1B. Şimdi satın alınacak kurlar <span style="font-weight:700;text-transform:none;letter-spacing:0">(birden fazla seçilebilir)</span></div>
-            <p class="course-history-note">Yalnızca yeni kayıtları seçin. A1 ve A2 birlikte seçilirse 22.000 ₺’lik kombine paket otomatik kullanılır. Önceden alınmış bir kur tekrar seçilemez.</p>
+            <div class="section-title">1. Kur / paket seç <span style="font-weight:700;text-transform:none;letter-spacing:0">(birden fazla seçilebilir)</span></div>
             <div class="choices" id="courseChoices"></div>
           </div>
 
@@ -585,8 +584,14 @@
               <input type="checkbox" id="camp-returning" name="campaign" value="returning">
               <label for="camp-returning">
                 <strong>Devam Eden Öğrenci — %20</strong>
-                <small>Yalnızca daha önce en az bir kur almış öğrencinin şimdi satın aldığı yeni kurlara uygulanır. Eski kayıtların fiyatı değişmez.</small>
+                <small>İndirim her kur için ayrı seçilir. Diğer kampanyalarla birlikte kullanılabilir.</small>
               </label>
+            </div>
+
+            <div class="course-only returning-options hidden" id="returningCoursePicker">
+              <strong>%20 indirim uygulanacak kurlar</strong>
+              <div class="course-discount-options" id="returningCourseChoices"></div>
+              <small>Yalnızca işaretlenen kurlar indirimli hesaplanır.</small>
             </div>
 
             <div class="campaign">
@@ -687,12 +692,8 @@
         </div>
 
         <div class="receipt">
-          <div class="row hidden" id="previousCoursesRow">
-            <div class="k">Önceden alınan · ücrete dahil değil</div>
-            <div class="v" id="previousCoursesLabel">—</div>
-          </div>
           <div class="row">
-            <div class="k">Yeni kayıt · seçili paket</div>
+            <div class="k">Seçili paket</div>
             <div class="v" id="selectedPackage">A1</div>
           </div>
           <div class="row" id="courseBreakdownRow">
@@ -730,7 +731,7 @@
         </div>
 
         <div class="notice" id="ruleNotice">
-          Kampanyalar birleştirilebilir. “Arkadaşını Getir” ve “Ailece Katılım” aynı anda seçilemez. Devam eden öğrenci %20 indirimi yalnızca şimdi alınan kurlara uygulanır; geçmiş kurlar tekrar fiyatlandırılmaz.
+          Kampanyalar birleştirilebilir. “Arkadaşını Getir” ve “Ailece Katılım” aynı anda seçilemez. %20 devam indirimi kur bazında seçilir.
         </div>
 
         <section class="payment-preview" aria-label="Öğrenci ödeme mesajı">
@@ -809,7 +810,7 @@
   let state = {
     tab: "course",
     selectedCourses: ["a1"],
-    previousCourses: [],
+    discountedCourses: [],
     selectedPrivate: "single"
   };
 
@@ -907,7 +908,6 @@
       "Öğrenci: " + (s.studentName || "[Öğrenci adı giriniz]"),
       "Kayıt olunan " + (s.tab === "course" ? "seviye/paket" : "özel ders paketi") + ": " + s.packageName
     ];
-    if(s.previousPackageName) result.push("Önceden alınan (ücrete dahil değil): " + s.previousPackageName);
     if(s.persons > 1) result.push("Katılımcı sayısı: " + s.persons);
     result.push("");
     result.push("EĞİTİM VE ÜCRET");
@@ -944,7 +944,7 @@
     if(el) el.value = "";
   }
 
-  // A1+A2 paketinin iki kurla çakışmasını ve eski/yeni tekrarlarını engeller.
+  // A1 + A2 tek pakettir; her kur ya da paket yalnızca bir kez seçilir.
   function courseUnits(key){
     return key === "a1a2" ? ["a1","a2"] : [key];
   }
@@ -953,13 +953,9 @@
     return courseUnits(first).some(unit => courseUnits(second).includes(unit));
   }
 
-  function overlapsAny(keys,key){
-    return keys.some(existing => courseOverlaps(existing,key));
-  }
-
-  function addCourseKey(keys,key,autoBundle){
+  function addCourseKey(keys,key){
     let result = keys.filter(existing => !courseOverlaps(existing,key));
-    if(autoBundle && (key === "a1" || key === "a2")){
+    if(key === "a1" || key === "a2"){
       const partner = key === "a1" ? "a2" : "a1";
       if(result.includes(partner)){
         result = result.filter(existing => existing !== partner);
@@ -969,61 +965,59 @@
     return [...result,key];
   }
 
-  // Geçmişteki A1 işaretlenirse yeni A1+A2 paketinin A2 kısmını korur.
-  function removePreviousFromNew(keys,previousKey){
-    const bought = courseUnits(previousKey);
-    return keys.flatMap(key=>{
-      const remaining = courseUnits(key).filter(unit=>!bought.includes(unit));
-      return key === "a1a2" && remaining.length === 2 ? ["a1a2"] : remaining;
+  function renderReturningCourseChoices(){
+    const picker = document.getElementById("returningCoursePicker");
+    const checked = campaignChecked("returning");
+    const selected = getSelectedCourseKeys();
+    picker.classList.toggle("hidden", !checked || state.tab !== "course");
+    state.discountedCourses = state.discountedCourses.filter(k => selected.includes(k));
+    const holder = document.getElementById("returningCourseChoices");
+    if(!selected.length){
+      holder.textContent = "Önce kurs seçin.";
+      return;
+    }
+    holder.innerHTML = selected.map(k => `
+      <label>
+        <input type="checkbox" name="courseDiscount" value="${k}"
+               ${state.discountedCourses.includes(k) ? "checked" : ""}>
+        ${labels.course[k][0]} · %20
+      </label>
+    `).join("");
+    holder.querySelectorAll('input[name="courseDiscount"]').forEach(el=>{
+      el.addEventListener("change",()=>{
+        state.discountedCourses = el.checked
+          ? [...state.discountedCourses.filter(k => k !== el.value),el.value]
+          : state.discountedCourses.filter(k => k !== el.value);
+        clearCustomTotal();
+        calculate();
+      });
     });
-  }
-  function syncReturningCampaign(){
-    const el = document.getElementById("camp-returning");
-    el.disabled = state.previousCourses.length === 0;
-    if(el.disabled) el.checked = false;
   }
 
   function renderChoices(){
     const courseEl = document.getElementById("courseChoices");
-    const previousEl = document.getElementById("previousCourseChoices");
     const privateEl = document.getElementById("privateChoices");
 
-    previousEl.innerHTML = Object.entries(labels.course).map(([key,[name,sub]])=>`
-      <div class="choice">
-        <input type="checkbox" name="previousCourse" id="previous-${key}" value="${key}"
-               ${state.previousCourses.includes(key) ? "checked" : ""}>
-        <label for="previous-${key}">
-          <div>
-            <div class="name">${name}</div>
-            <div class="sub">${state.previousCourses.includes(key) ? "Önceden alındı" : (sub || "Geçmiş kayıt")}</div>
-          </div>
-          <div class="price">${state.previousCourses.includes(key) ? "✓" : "Seç"}</div>
-        </label>
-      </div>
-    `).join("");
-
     courseEl.innerHTML = Object.entries(labels.course).map(([key,[name,sub]])=>{
-      const locked = overlapsAny(state.previousCourses,key);
+      const locked = state.selectedCourses.includes("a1a2") && (key === "a1" || key === "a2");
       return `
       <div class="choice">
         <input type="checkbox" name="coursePackage" id="course-${key}" value="${key}"
-               ${state.selectedCourses.includes(key) ? "checked" : ""} ${locked ? "disabled" : ""}>
+               ${state.selectedCourses.includes(key) ? "checked" : ""}
+               ${locked ? "disabled" : ""}>
         <label for="course-${key}">
           <div>
             <div class="name">${name}</div>
-            <div class="sub">${locked ? "Önceden alınmış — tekrar eklenmez" : sub}</div>
+            ${sub ? `<div class="sub">${sub}</div>` : ""}
           </div>
-          <div class="price">${locked ? "Önceden alındı" : moneyPlain(prices.course[key])}</div>
+          <div class="price">${moneyPlain(prices.course[key])}</div>
         </label>
       </div>
     `;}).join("");
 
     privateEl.innerHTML = Object.entries(labels.private).map(([key,[name,sub]])=>`
       <div class="choice">
-        <input type="radio"
-               name="privatePackage"
-               id="private-${key}"
-               value="${key}"
+        <input type="radio" name="privatePackage" id="private-${key}" value="${key}"
                ${state.selectedPrivate===key ? "checked" : ""}>
         <label for="private-${key}">
           <div>
@@ -1035,9 +1029,6 @@
       </div>
     `).join("");
 
-    document.querySelectorAll('input[name="previousCourse"]').forEach(el=>{
-      el.addEventListener("change",()=>handlePreviousCourseSelection(el.value,el.checked));
-    });
     document.querySelectorAll('input[name="coursePackage"]').forEach(el=>{
       el.addEventListener("change",()=>handleCourseSelection(el.value,el.checked));
     });
@@ -1048,34 +1039,26 @@
         calculate();
       });
     });
-    syncReturningCampaign();
-  }
-
-  function handlePreviousCourseSelection(key,checked){
-    const hadHistory = state.previousCourses.length > 0;
-    if(checked){
-      state.previousCourses = addCourseKey(state.previousCourses,key,false);
-      state.selectedCourses = removePreviousFromNew(state.selectedCourses,key);
-    }else{
-      state.previousCourses = state.previousCourses.filter(existing => existing !== key);
-    }
-    if(!hadHistory && state.previousCourses.length > 0){
-      document.getElementById("camp-returning").checked = true;
-    }
-    clearCustomTotal();
-    renderChoices();
-    calculate();
+    renderReturningCourseChoices();
   }
 
   function handleCourseSelection(key,checked){
+    const oldSelected = state.selectedCourses.slice();
+    const oldDiscounted = state.discountedCourses.slice();
     if(checked){
-      if(overlapsAny(state.previousCourses,key)){
-        renderChoices();
-        return;
+      state.selectedCourses = addCourseKey(state.selectedCourses,key);
+      const resulting = state.selectedCourses.find(k=>courseUnits(k).includes(key));
+      // Bireysel indirimler A1+A2 paketine otomatik taşınmaz.
+      state.discountedCourses = oldDiscounted.filter(k=>state.selectedCourses.includes(k));
+      if(campaignChecked("returning") && resulting && !oldSelected.includes(resulting)){
+        const createdBundle = resulting === "a1a2" && key !== "a1a2";
+        if(!createdBundle && !state.discountedCourses.includes(resulting)){
+          state.discountedCourses.push(resulting);
+        }
       }
-      state.selectedCourses = addCourseKey(state.selectedCourses,key,true);
     }else{
       state.selectedCourses = state.selectedCourses.filter(existing => existing !== key);
+      state.discountedCourses = state.discountedCourses.filter(existing => existing !== key);
     }
     clearCustomTotal();
     renderChoices();
@@ -1175,11 +1158,14 @@
           basePriceText = `${moneyPlain(onePersonTotal)} × 2 = ${moneyPlain(listTotal)}`;
         }
 
-        // Devam eden öğrenci indirimi artık seçili TÜM kurslara uygulanır.
-        // Birden çok kampanya varsa önceki indirimli tutar üzerinden ayrıca %20 düşer.
-        if(campaigns.includes("returning") && state.previousCourses.length > 0){
-          finalTotal = finalTotal * 0.80;
-          applied.push("Devam Eden Öğrenci %20 · yalnızca yeni alınan kurlar");
+        // Seçilen kurslara %20 uygulanır; arkadaş/aile kampanyalarıyla aynı oranda birleşir.
+        if(campaigns.includes("returning")){
+          const discountedKeys = state.discountedCourses.filter(k => keys.includes(k));
+          const selectedBase = courseListTotal(discountedKeys);
+          if(selectedBase > 0 && onePersonTotal > 0){
+            finalTotal -= finalTotal * (selectedBase / onePersonTotal) * 0.20;
+            applied.push("Devam Eden Öğrenci %20: " + discountedKeys.map(k => labels.course[k][0]).join(", "));
+          }
         }
 
         // Manuel indirim en son uygulanır ve diğer kampanyalarla birleşebilir.
@@ -1258,11 +1244,6 @@
     const paymentText = payment === "card" ? "Kredi kartı · 2 taksit" : "Havale / EFT";
     const studentName = document.getElementById("studentName").value.trim();
 
-    const previousPackageName = state.tab === "course" ? coursePackageLabel(state.previousCourses) : "";
-    const previousRow = document.getElementById("previousCoursesRow");
-    previousRow.classList.toggle("hidden", state.tab !== "course" || !state.previousCourses.length);
-    document.getElementById("previousCoursesLabel").textContent = state.previousCourses.length ? previousPackageName : "—";
-
     document.getElementById("grandTotal").textContent = moneyPlain(finalTotal);
     document.getElementById("summaryMeta").textContent = `${packageName} · ${persons} kişi · ${paymentText}`;
     document.getElementById("selectedPackage").textContent = packageName;
@@ -1274,20 +1255,13 @@
       const keys = getSelectedCourseKeys();
 
       if(keys.length){
-        if(campaigns.includes("returning") && state.previousCourses.length > 0){
-          // Devam eden öğrenci indirimi yalnızca yeni seçili kurlara uygulanır.
-          // Örn. B1: 15.000 -> 12.000, B2: 17.000 -> 13.600.
-          breakdownEl.innerHTML = keys.map(k => {
-            const normal = Number(prices.course[k] || 0);
-            const discounted = normal * 0.80;
-            return `${labels.course[k][0]}: ${moneyPlain(normal)} → ${moneyPlain(discounted)}`;
-          }).join("<br>");
-        } else {
-          breakdownEl.innerHTML = keys.map(k => {
-            const normal = Number(prices.course[k] || 0);
-            return `${labels.course[k][0]}: ${moneyPlain(normal)}`;
-          }).join("<br>");
-        }
+        breakdownEl.innerHTML = keys.map(k => {
+          const normal = Number(prices.course[k] || 0);
+          const discounted = campaigns.includes("returning") && state.discountedCourses.includes(k);
+          return discounted
+            ? `${labels.course[k][0]}: ${moneyPlain(normal)} → ${moneyPlain(normal * 0.80)}`
+            : `${labels.course[k][0]}: ${moneyPlain(normal)}`;
+        }).join("<br>");
         breakdownRow.classList.remove("hidden");
       } else {
         breakdownRow.classList.add("hidden");
@@ -1322,7 +1296,6 @@
       hasSelection: state.tab !== "course" || getSelectedCourseKeys().length > 0,
       packageName,
       packageLines,
-      previousPackageName: state.tab === "course" && state.previousCourses.length ? previousPackageName : "",
       persons,
       listTotal,
       finalTotal,
@@ -1381,7 +1354,9 @@
       if(el.checked && el.value === "family"){
         document.getElementById("camp-friend").checked = false;
       }
+      if(el.value === "returning" && !el.checked) state.discountedCourses = [];
       clearCustomTotal();
+      renderReturningCourseChoices();
       calculate();
     });
   });
