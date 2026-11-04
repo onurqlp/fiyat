@@ -625,7 +625,7 @@
               <label for="payment">Ödeme yöntemi</label>
               <select id="payment">
                 <option value="transfer">Havale / EFT</option>
-                <option value="card">Kredi kartı — 2 taksit</option>
+                <option value="card">Kredi Kartı / Online Ödeme</option>
               </select>
             </div>
             <div class="field">
@@ -634,7 +634,7 @@
             </div>
           </div>
 
-          <div class="inline-fields" style="margin-top:12px">
+          <div class="inline-fields" id="transferScheduleControls" style="margin-top:12px">
             <div class="field">
               <label for="installmentCount">Taksit sayısı</label>
               <select id="installmentCount" aria-label="Taksit sayısı">
@@ -657,7 +657,8 @@
               <input id="firstPaymentDate" type="date" aria-label="İlk ödeme tarihi">
             </div>
           </div>
-          <p class="payment-help">Tarihler ilk ödeme gününden itibaren aylık oluşturulur. Aşağıdaki ödeme planında her taksidin tarihini ayrıca düzenleyebilirsiniz. Kartla ödemede mevcut 2 taksit seçeneği korunur; banka ekstre tarihleri farklı olabilir.</p>
+          <p class="payment-help" id="transferScheduleHelp">Havale/EFT taksit tarihlerini aşağıdaki takvimden düzenleyebilirsiniz.</p>
+          <p class="payment-help hidden" id="cardScheduleHelp">Kredi kartı ödemesi bağlantı üzerinden yapılır. Taksit ve banka işlemleri ödeme ekranında yönetilir.</p>
           <p class="payment-help hidden" id="cardPaymentLinkStatus" aria-live="polite"></p>
 
           <div class="bank-option">
@@ -737,9 +738,11 @@
 
         <section class="payment-preview" aria-label="Öğrenci ödeme mesajı">
           <h3>Öğrenciye gönderilecek ödeme bilgileri</h3>
-          <p class="payment-help">Mesaj otomatik hazırlanır. Taksit tarihlerini değiştirmek isterseniz aşağıdaki takvimden düzenleyin.</p>
-          <div class="schedule-heading">Taksit takvimi <span id="scheduleCount"></span></div>
-          <div class="schedule-list" id="scheduleList"></div>
+          <p class="payment-help" id="previewHelp">Mesaj otomatik hazırlanır. Havale/EFT taksit tarihlerini aşağıdaki takvimden düzenleyebilirsiniz.</p>
+          <div id="transferSchedulePreview">
+            <div class="schedule-heading">Taksit takvimi <span id="scheduleCount"></span></div>
+            <div class="schedule-list" id="scheduleList"></div>
+          </div>
           <label class="message-label" for="paymentMessage">WhatsApp mesajı önizlemesi</label>
           <textarea class="payment-message" id="paymentMessage" readonly spellcheck="false"></textarea>
           <p id="copyWarning" class="copy-warning hidden" role="alert"></p>
@@ -747,7 +750,7 @@
         <div class="actions">
           <button class="btn btn-primary" id="copyBtn">Mesajı Kopyala</button>
           <button class="btn btn-secondary" id="whatsappBtn">WhatsApp'ta Aç</button>
-          <button class="btn btn-secondary btn-wide" id="printBtn">Ödeme Planını Yazdır / PDF</button>
+          <button class="btn btn-secondary btn-wide" id="printBtn">Ödeme Bilgilerini Yazdır / PDF</button>
         </div>
       </aside>
     </section>
@@ -920,14 +923,16 @@
   function syncPaymentControls(){
     const card = document.getElementById("payment").value === "card";
     const el = document.getElementById("installmentCount");
-    if(card){
-      if(!el.disabled) transferInstallments = Number(el.value) || 1;
-      el.value = "2";
-      el.disabled = true;
-    } else {
-      el.disabled = false;
-      el.value = String(transferInstallments);
+    if(card && !el.disabled){
+      transferInstallments = Number(el.value) || 1;
     }
+    el.disabled = card;
+    if(!card) el.value = String(transferInstallments);
+    document.getElementById("transferScheduleControls").classList.toggle("hidden",card);
+    document.getElementById("transferScheduleHelp").classList.toggle("hidden",card);
+    document.getElementById("cardScheduleHelp").classList.toggle("hidden",!card);
+    document.getElementById("transferSchedulePreview").classList.toggle("hidden",card);
+    document.getElementById("previewHelp").classList.toggle("hidden",card);
     Object.keys(scheduleDateOverrides).forEach(k=>delete scheduleDateOverrides[k]);
     calculate();
   }
@@ -977,19 +982,19 @@
     if(s.additionalCharge > 0) result.push("Elle belirlenen fiyat farkı: +" + moneyPlain(s.additionalCharge));
     result.push("ÖDENECEK TOPLAM: " + moneyPlain(s.finalTotal));
     result.push("");
-    result.push("ÖDEME PLANI");
+    result.push(s.payment === "card" ? "ÖDEME BİLGİLERİ" : "ÖDEME PLANI");
     result.push("Ödeme yöntemi: " + s.paymentText);
-    result.push("Ödeme şekli: " + (s.count === 1 ? "Peşin / tek ödeme" : s.count + " taksit"));
-    for(const item of s.schedule){
-      result.push(item.number + ". " + (s.count === 1 ? "ödeme" : "taksit") + " | " + dateTr(item.date) + " | " + moneyPlain(item.amount));
-    }
     if(s.payment === "card"){
       if(s.cardPaymentLink){
         result.push("");
         result.push("KREDİ KARTI İLE ÖDEME LİNKİ");
         result.push(s.cardPaymentLink);
       }
-      result.push("Not: Kredi kartı ekstre ve tahsilat tarihleri bankaya göre değişebilir.");
+    } else {
+      result.push("Ödeme şekli: " + (s.count === 1 ? "Peşin / tek ödeme" : s.count + " taksit"));
+      for(const item of s.schedule){
+        result.push(item.number + ". " + (s.count === 1 ? "ödeme" : "taksit") + " | " + dateTr(item.date) + " | " + moneyPlain(item.amount));
+      }
     }
     if(s.includeBankDetails){
       result.push("");
@@ -1301,11 +1306,11 @@
     const discountAmount = Math.max(0, listTotal - finalTotal);
     const discountText = applied.length ? applied.join(" + ") : "—";
     const payment = document.getElementById("payment").value;
-    const count = payment === "card" ? 2 : Math.max(1, Math.min(12, Number(document.getElementById("installmentCount").value) || 1));
-    const firstDate = document.getElementById("firstPaymentDate").value;
-    const schedule = generateSchedule(finalTotal,count,firstDate);
+    const count = payment === "card" ? 0 : Math.max(1, Math.min(12, Number(document.getElementById("installmentCount").value) || 1));
+    const firstDate = payment === "card" ? "" : document.getElementById("firstPaymentDate").value;
+    const schedule = payment === "card" ? [] : generateSchedule(finalTotal,count,firstDate);
     const installment = schedule.length > 1 ? schedule[0].amount : null;
-    const paymentText = payment === "card" ? "Kredi kartı · 2 taksit" : "Havale / EFT";
+    const paymentText = payment === "card" ? "Kredi kartı / Online ödeme" : "Havale / EFT";
     const studentName = document.getElementById("studentName").value.trim();
 
     document.getElementById("grandTotal").textContent = moneyPlain(finalTotal);
@@ -1340,7 +1345,7 @@
     document.getElementById("discountAmount").textContent = discountAmount > 0 ? "− " + moneyPlain(discountAmount) : "0 ₺";
     document.getElementById("perPerson").textContent = moneyPlain(persons ? finalTotal / persons : finalTotal);
     document.getElementById("installment").textContent = count > 1 ? count + " taksit" : "Peşin / tek ödeme";
-    document.getElementById("installmentRow").classList.remove("hidden");
+    document.getElementById("installmentRow").classList.toggle("hidden",payment === "card");
 
     const nameRow = document.getElementById("nameRow");
     nameRow.classList.toggle("hidden", !studentName);
@@ -1480,7 +1485,7 @@
     if(!s.hasSelection) error = "Ödeme planı için en az bir kurs seçin.";
     else if(s.invalidManualTotal) error = "Nihai toplam için geçerli bir tutar girin.";
     else if(!s.studentName) error = "Öğrenci adını girerek mesajı tamamlayın.";
-    else if(!s.firstDate || s.schedule.some(x=>!x.date)) error = "Tüm taksit tarihlerini doldurun.";
+    else if(s.payment !== "card" && (!s.firstDate || s.schedule.some(x=>!x.date))) error = "Tüm taksit tarihlerini doldurun.";
     else if(s.payment === "card" && !s.cardPaymentLink){
       error = "Kart ödeme bağlantısı güncel listeden alınamadı. Bağlantı için tekrar deneyin.";
       if(cardPaymentLinkStatus !== "loading") refreshCardPaymentLink();
@@ -1490,7 +1495,7 @@
     if(error){
       if(s.invalidManualTotal) document.getElementById("customFinalPrice").focus();
       else if(!s.studentName) document.getElementById("studentName").focus();
-      else if(!s.firstDate) document.getElementById("firstPaymentDate").focus();
+      else if(s.payment !== "card" && !s.firstDate) document.getElementById("firstPaymentDate").focus();
       return false;
     }
     return true;
