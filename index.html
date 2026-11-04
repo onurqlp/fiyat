@@ -205,6 +205,9 @@
       color:var(--muted);
       margin-top:3px;
     }
+    .choice input:disabled + label{opacity:.62;cursor:not-allowed;background:#f3f5f9}
+    .choice input:disabled + label .price{font-size:12px;white-space:normal;text-align:right}
+    .course-history-note{font-size:12px;line-height:1.5;color:#52627f;background:#f1f6ff;border:1px solid #d8e3f7;border-radius:11px;padding:10px 12px;margin:0 0 12px}
 
     .price{
       font-weight:900;
@@ -546,7 +549,11 @@
           </div>
 
           <div id="coursePanel">
-            <div class="section-title">1. Kur / paket seç <span style="font-weight:700;text-transform:none;letter-spacing:0">(birden fazla seçilebilir)</span></div>
+            <div class="section-title">1A. Önceden alınan kurlar <span style="font-weight:700;text-transform:none;letter-spacing:0">(varsa işaretle)</span></div>
+            <p class="course-history-note">Öğrencinin daha önce satın aldığı kurları seçin. Bunlar yeni ücretin ve taksitlerin içine girmez. Daha önce A1+A2 paketini aldıysa birleşik seçeneği kullanın.</p>
+            <div class="choices" id="previousCourseChoices"></div>
+            <div class="section-title">1B. Şimdi satın alınacak kurlar <span style="font-weight:700;text-transform:none;letter-spacing:0">(birden fazla seçilebilir)</span></div>
+            <p class="course-history-note">Yalnızca yeni kayıtları seçin. A1 ve A2 birlikte seçilirse 22.000 ₺’lik kombine paket otomatik kullanılır. Önceden alınmış bir kur tekrar seçilemez.</p>
             <div class="choices" id="courseChoices"></div>
           </div>
 
@@ -577,7 +584,7 @@
               <input type="checkbox" id="camp-returning" name="campaign" value="returning">
               <label for="camp-returning">
                 <strong>Devam Eden Öğrenci — %20</strong>
-                <small>Seçilen tüm kurslara uygulanır. Örn. B1 + B2 birlikte seçilirse ikisi de %20 indirimli olur.</small>
+                <small>Yalnızca daha önce en az bir kur almış öğrencinin şimdi satın aldığı yeni kurlara uygulanır. Eski kayıtların fiyatı değişmez.</small>
               </label>
             </div>
 
@@ -679,8 +686,12 @@
         </div>
 
         <div class="receipt">
+          <div class="row hidden" id="previousCoursesRow">
+            <div class="k">Önceden alınan · ücrete dahil değil</div>
+            <div class="v" id="previousCoursesLabel">—</div>
+          </div>
           <div class="row">
-            <div class="k">Seçili paket</div>
+            <div class="k">Yeni kayıt · seçili paket</div>
             <div class="v" id="selectedPackage">A1</div>
           </div>
           <div class="row" id="courseBreakdownRow">
@@ -718,7 +729,7 @@
         </div>
 
         <div class="notice" id="ruleNotice">
-          Kampanyalar birleştirilebilir. “Arkadaşını Getir” ve “Ailece Katılım” aynı anda seçilemez. Devam eden öğrenci %20 indirimi seçili tüm kurslara uygulanır.
+          Kampanyalar birleştirilebilir. “Arkadaşını Getir” ve “Ailece Katılım” aynı anda seçilemez. Devam eden öğrenci %20 indirimi yalnızca şimdi alınan kurlara uygulanır; geçmiş kurlar tekrar fiyatlandırılmaz.
         </div>
 
         <section class="payment-preview" aria-label="Öğrenci ödeme mesajı">
@@ -797,6 +808,7 @@
   let state = {
     tab: "course",
     selectedCourses: ["a1"],
+    previousCourses: [],
     selectedPrivate: "single"
   };
 
@@ -894,6 +906,7 @@
       "Öğrenci: " + (s.studentName || "[Öğrenci adı giriniz]"),
       "Kayıt olunan " + (s.tab === "course" ? "seviye/paket" : "özel ders paketi") + ": " + s.packageName
     ];
+    if(s.previousPackageName) result.push("Önceden alınan (ücrete dahil değil): " + s.previousPackageName);
     if(s.persons > 1) result.push("Katılımcı sayısı: " + s.persons);
     result.push("");
     result.push("EĞİTİM VE ÜCRET");
@@ -930,26 +943,71 @@
     if(el) el.value = "";
   }
 
+  // A1+A2 paketinin iki kurla çakışmasını ve eski/yeni tekrarlarını engeller.
+  function courseUnits(key){
+    return key === "a1a2" ? ["a1","a2"] : [key];
+  }
+
+  function courseOverlaps(first,second){
+    return courseUnits(first).some(unit => courseUnits(second).includes(unit));
+  }
+
+  function overlapsAny(keys,key){
+    return keys.some(existing => courseOverlaps(existing,key));
+  }
+
+  function addCourseKey(keys,key,autoBundle){
+    let result = keys.filter(existing => !courseOverlaps(existing,key));
+    if(autoBundle && (key === "a1" || key === "a2")){
+      const partner = key === "a1" ? "a2" : "a1";
+      if(result.includes(partner)){
+        result = result.filter(existing => existing !== partner);
+        key = "a1a2";
+      }
+    }
+    return [...result,key];
+  }
+
+  function syncReturningCampaign(){
+    const el = document.getElementById("camp-returning");
+    el.disabled = state.previousCourses.length === 0;
+    if(el.disabled) el.checked = false;
+  }
+
   function renderChoices(){
     const courseEl = document.getElementById("courseChoices");
+    const previousEl = document.getElementById("previousCourseChoices");
     const privateEl = document.getElementById("privateChoices");
 
-    courseEl.innerHTML = Object.entries(labels.course).map(([key,[name,sub]])=>`
+    previousEl.innerHTML = Object.entries(labels.course).map(([key,[name,sub]])=>`
       <div class="choice">
-        <input type="checkbox"
-               name="coursePackage"
-               id="course-${key}"
-               value="${key}"
-               ${state.selectedCourses.includes(key) ? "checked" : ""}>
-        <label for="course-${key}">
+        <input type="checkbox" name="previousCourse" id="previous-${key}" value="${key}"
+               ${state.previousCourses.includes(key) ? "checked" : ""}>
+        <label for="previous-${key}">
           <div>
             <div class="name">${name}</div>
-            ${sub ? `<div class="sub">${sub}</div>` : ""}
+            <div class="sub">${state.previousCourses.includes(key) ? "Önceden alındı" : (sub || "Geçmiş kayıt")}</div>
           </div>
-          <div class="price">${moneyPlain(prices.course[key])}</div>
+          <div class="price">${state.previousCourses.includes(key) ? "✓" : "Seç"}</div>
         </label>
       </div>
     `).join("");
+
+    courseEl.innerHTML = Object.entries(labels.course).map(([key,[name,sub]])=>{
+      const locked = overlapsAny(state.previousCourses,key);
+      return `
+      <div class="choice">
+        <input type="checkbox" name="coursePackage" id="course-${key}" value="${key}"
+               ${state.selectedCourses.includes(key) ? "checked" : ""} ${locked ? "disabled" : ""}>
+        <label for="course-${key}">
+          <div>
+            <div class="name">${name}</div>
+            <div class="sub">${locked ? "Önceden alınmış — tekrar eklenmez" : sub}</div>
+          </div>
+          <div class="price">${locked ? "Önceden alındı" : moneyPlain(prices.course[key])}</div>
+        </label>
+      </div>
+    `;}).join("");
 
     privateEl.innerHTML = Object.entries(labels.private).map(([key,[name,sub]])=>`
       <div class="choice">
@@ -968,34 +1026,48 @@
       </div>
     `).join("");
 
-    document.querySelectorAll('input[name="coursePackage"]').forEach(el=>{
-      el.addEventListener("change", ()=>handleCourseSelection(el.value, el.checked));
+    document.querySelectorAll('input[name="previousCourse"]').forEach(el=>{
+      el.addEventListener("change",()=>handlePreviousCourseSelection(el.value,el.checked));
     });
-
+    document.querySelectorAll('input[name="coursePackage"]').forEach(el=>{
+      el.addEventListener("change",()=>handleCourseSelection(el.value,el.checked));
+    });
     document.querySelectorAll('input[name="privatePackage"]').forEach(el=>{
-      el.addEventListener("change", ()=>{
+      el.addEventListener("change",()=>{
         state.selectedPrivate = el.value;
         clearCustomTotal();
         calculate();
       });
     });
+    syncReturningCampaign();
   }
 
-  function handleCourseSelection(key, checked){
+  function handlePreviousCourseSelection(key,checked){
+    const hadHistory = state.previousCourses.length > 0;
     if(checked){
-      if(key === "a1a2"){
-        state.selectedCourses = state.selectedCourses.filter(k => !["a1","a2"].includes(k));
-        if(!state.selectedCourses.includes("a1a2")) state.selectedCourses.push("a1a2");
-      } else if(["a1","a2"].includes(key)){
-        state.selectedCourses = state.selectedCourses.filter(k => k !== "a1a2");
-        if(!state.selectedCourses.includes(key)) state.selectedCourses.push(key);
-      } else if(!state.selectedCourses.includes(key)){
-        state.selectedCourses.push(key);
-      }
-    } else {
-      state.selectedCourses = state.selectedCourses.filter(k => k !== key);
+      state.previousCourses = addCourseKey(state.previousCourses,key,false);
+      state.selectedCourses = state.selectedCourses.filter(existing => !courseOverlaps(existing,key));
+    }else{
+      state.previousCourses = state.previousCourses.filter(existing => existing !== key);
     }
+    if(!hadHistory && state.previousCourses.length > 0){
+      document.getElementById("camp-returning").checked = true;
+    }
+    clearCustomTotal();
+    renderChoices();
+    calculate();
+  }
 
+  function handleCourseSelection(key,checked){
+    if(checked){
+      if(overlapsAny(state.previousCourses,key)){
+        renderChoices();
+        return;
+      }
+      state.selectedCourses = addCourseKey(state.selectedCourses,key,true);
+    }else{
+      state.selectedCourses = state.selectedCourses.filter(existing => existing !== key);
+    }
     clearCustomTotal();
     renderChoices();
     calculate();
@@ -1096,9 +1168,9 @@
 
         // Devam eden öğrenci indirimi artık seçili TÜM kurslara uygulanır.
         // Birden çok kampanya varsa önceki indirimli tutar üzerinden ayrıca %20 düşer.
-        if(campaigns.includes("returning")){
+        if(campaigns.includes("returning") && state.previousCourses.length > 0){
           finalTotal = finalTotal * 0.80;
-          applied.push("Devam Eden Öğrenci %20 · tüm seçili kurslar");
+          applied.push("Devam Eden Öğrenci %20 · yalnızca yeni alınan kurlar");
         }
 
         // Manuel indirim en son uygulanır ve diğer kampanyalarla birleşebilir.
@@ -1177,6 +1249,11 @@
     const paymentText = payment === "card" ? "Kredi kartı · 2 taksit" : "Havale / EFT";
     const studentName = document.getElementById("studentName").value.trim();
 
+    const previousPackageName = state.tab === "course" ? coursePackageLabel(state.previousCourses) : "";
+    const previousRow = document.getElementById("previousCoursesRow");
+    previousRow.classList.toggle("hidden", state.tab !== "course" || !state.previousCourses.length);
+    document.getElementById("previousCoursesLabel").textContent = state.previousCourses.length ? previousPackageName : "—";
+
     document.getElementById("grandTotal").textContent = moneyPlain(finalTotal);
     document.getElementById("summaryMeta").textContent = `${packageName} · ${persons} kişi · ${paymentText}`;
     document.getElementById("selectedPackage").textContent = packageName;
@@ -1188,8 +1265,8 @@
       const keys = getSelectedCourseKeys();
 
       if(keys.length){
-        if(campaigns.includes("returning")){
-          // Devam eden öğrenci indirimi her seçili kura ayrı ayrı uygulanır.
+        if(campaigns.includes("returning") && state.previousCourses.length > 0){
+          // Devam eden öğrenci indirimi yalnızca yeni seçili kurlara uygulanır.
           // Örn. B1: 15.000 -> 12.000, B2: 17.000 -> 13.600.
           breakdownEl.innerHTML = keys.map(k => {
             const normal = Number(prices.course[k] || 0);
@@ -1236,6 +1313,7 @@
       hasSelection: state.tab !== "course" || getSelectedCourseKeys().length > 0,
       packageName,
       packageLines,
+      previousPackageName: state.tab === "course" && state.previousCourses.length ? previousPackageName : "",
       persons,
       listTotal,
       finalTotal,
