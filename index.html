@@ -658,6 +658,7 @@
             </div>
           </div>
           <p class="payment-help">Tarihler ilk ödeme gününden itibaren aylık oluşturulur. Aşağıdaki ödeme planında her taksidin tarihini ayrıca düzenleyebilirsiniz. Kartla ödemede mevcut 2 taksit seçeneği korunur; banka ekstre tarihleri farklı olabilir.</p>
+          <p class="payment-help hidden" id="cardPaymentLinkStatus" aria-live="polite"></p>
 
           <div class="bank-option">
             <button type="button" id="toggleBankDetails" class="bank-toggle" aria-pressed="false">Banka Bilgilerini Mesaja Ekle</button>
@@ -824,6 +825,62 @@
   let transferInstallments = 1;
   let includeBankDetails = false;
 
+  // Kart ödemesi için tek kaynak: AYDA Linkler sayfasındaki #url-odeme.
+  // Eski/önbellekte kalmış ödeme URL'sini kullanmak yerine kart seçildiğinde yeniden okunur.
+  const PAYMENT_LINK_DIRECTORY = "https://onurqlp.github.io/linkler/";
+  let cardPaymentLink = "";
+  let cardPaymentLinkStatus = "idle";
+  let cardPaymentLinkPromise = null;
+
+  function updateCardPaymentLinkStatus(){
+    const el = document.getElementById("cardPaymentLinkStatus");
+    if(!el) return;
+    const isCard = document.getElementById("payment").value === "card";
+    el.classList.toggle("hidden",!isCard);
+    if(!isCard) return;
+    if(cardPaymentLinkStatus === "loading"){
+      el.textContent = "Kart ödeme bağlantısı alınıyor…";
+    }else if(cardPaymentLinkStatus === "ready"){
+      el.textContent = "Online ödeme bağlantısı güncel link listesinden alındı.";
+    }else if(cardPaymentLinkStatus === "error"){
+      el.textContent = "Online ödeme bağlantısı alınamadı. Linkler sayfasını kontrol edip kart ödemesini tekrar seçin.";
+    }else{
+      el.textContent = "Kart ödeme bağlantısı henüz yüklenmedi.";
+    }
+  }
+
+  async function refreshCardPaymentLink(){
+    if(cardPaymentLinkPromise) return cardPaymentLinkPromise;
+    cardPaymentLink = "";
+    cardPaymentLinkStatus = "loading";
+    updateCardPaymentLinkStatus();
+    calculate();
+    cardPaymentLinkPromise = (async()=>{
+      const response = await fetch(PAYMENT_LINK_DIRECTORY, {cache:"no-store"});
+      if(!response.ok) throw new Error("Linkler sayfası okunamadı.");
+      const documentHtml = new DOMParser().parseFromString(await response.text(),"text/html");
+      const element = documentHtml.getElementById("url-odeme");
+      if(!element) throw new Error("Online ödeme bağlantısı bulunamadı.");
+      const url = new URL(element.textContent.trim());
+      if(url.protocol !== "https:" || url.hostname !== "vpos.paratika.com.tr" ||
+         !url.pathname.startsWith("/paratikaopenpayment/init/")){
+        throw new Error("Online ödeme bağlantısı güvenli biçimde doğrulanamadı.");
+      }
+      cardPaymentLink = url.href;
+      cardPaymentLinkStatus = "ready";
+      return true;
+    })().catch(()=>{
+      cardPaymentLink = "";
+      cardPaymentLinkStatus = "error";
+      return false;
+    }).finally(()=>{
+      cardPaymentLinkPromise = null;
+      updateCardPaymentLinkStatus();
+      calculate();
+    });
+    return cardPaymentLinkPromise;
+  }
+
   const pad2 = n => String(n).padStart(2, "0");
 
   function localToday(){
@@ -926,7 +983,14 @@
     for(const item of s.schedule){
       result.push(item.number + ". " + (s.count === 1 ? "ödeme" : "taksit") + " | " + dateTr(item.date) + " | " + moneyPlain(item.amount));
     }
-    if(s.payment === "card") result.push("Not: Kredi kartı ekstre ve tahsilat tarihleri bankaya göre değişebilir.");
+    if(s.payment === "card"){
+      if(s.cardPaymentLink){
+        result.push("");
+        result.push("KREDİ KARTI İLE ÖDEME LİNKİ");
+        result.push(s.cardPaymentLink);
+      }
+      result.push("Not: Kredi kartı ekstre ve tahsilat tarihleri bankaya göre değişebilir.");
+    }
     if(s.includeBankDetails){
       result.push("");
       result.push("AYDA Dil Akademisi – Banka Bilgileri");
@@ -1308,6 +1372,7 @@
       invalidManualTotal,
       payment,
       paymentText,
+      cardPaymentLink: payment === "card" && cardPaymentLinkStatus === "ready" ? cardPaymentLink : "",
       includeBankDetails,
       installment,
       count,
@@ -1320,6 +1385,7 @@
     document.getElementById("paymentMessage").value = message;
     document.getElementById("printContent").textContent = message;
     renderScheduleRows(schedule);
+    updateCardPaymentLinkStatus();
   }
 
   function switchTab(tab){
@@ -1387,6 +1453,14 @@
     calculate();
   });
   document.getElementById("payment").addEventListener("change",syncPaymentControls);
+  document.getElementById("payment").addEventListener("change",()=>{
+    if(document.getElementById("payment").value === "card") refreshCardPaymentLink();
+  });
+  document.addEventListener("visibilitychange",()=>{
+    if(!document.hidden && document.getElementById("payment").value === "card"){
+      refreshCardPaymentLink();
+    }
+  });
   document.getElementById("installmentCount").addEventListener("change",()=>{
     if(document.getElementById("payment").value === "transfer"){
       transferInstallments = Number(document.getElementById("installmentCount").value) || 1;
@@ -1407,6 +1481,10 @@
     else if(s.invalidManualTotal) error = "Nihai toplam için geçerli bir tutar girin.";
     else if(!s.studentName) error = "Öğrenci adını girerek mesajı tamamlayın.";
     else if(!s.firstDate || s.schedule.some(x=>!x.date)) error = "Tüm taksit tarihlerini doldurun.";
+    else if(s.payment === "card" && !s.cardPaymentLink){
+      error = "Kart ödeme bağlantısı güncel listeden alınamadı. Bağlantı için tekrar deneyin.";
+      if(cardPaymentLinkStatus !== "loading") refreshCardPaymentLink();
+    }
     warning.textContent = error;
     warning.classList.toggle("hidden", !error);
     if(error){
@@ -1456,6 +1534,7 @@
   renderChoices();
   renderPriceSettings();
   calculate();
+  if(document.getElementById("payment").value === "card") refreshCardPaymentLink();
 </script>
 </body>
 </html>
